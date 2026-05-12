@@ -1,0 +1,28 @@
+# Sensitive files
+*.env
+.env*
+!.env.example
+*.secret
+*.key
+*.pem
+*.crt
+
+# Credentials and passwords
+**/passwords*
+**/credentials*
+**/tokens*
+
+# Proxmox
+proxmox/**/secret*
+proxmox/**/api-token*
+
+# Immich
+immich/.env
+
+# Pi-hole
+pihole/setupVars.conf
+pihole/**/pihole-FTL.db
+
+# OS
+.DS_Store
+Thumbs.db
