@@ -13,8 +13,9 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 ## Services
 
 ### Proxmox
-- LXC container configs and network interfaces
-- Storage: `local` (dir) + `local-lvm` (lvmthin)
+- LXC container configs, network interfaces, and fstab
+- Storage: `local` (dir) + `local-lvm` (lvmthin) + USB DAS (2x WD Red 1TB)
+- Nightly borg backup from `/mnt/storage` to `/mnt/backup` at 3am
 
 ### Pi-hole (CT 100)
 - Pi-hole v6 with Cloudflare DNS upstream
@@ -30,14 +31,15 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 Requires [just](https://github.com/casey/just).
 
 ```
-just pull           # Pull all configs from hosts
-just diff           # Show what differs between local and host
-just push-immich    # Push Immich configs to the host
-just push-pihole    # Push Pi-hole config and restart FTL
-just push-network   # Push Proxmox network config
-just ssh [target]   # SSH into pve, immich, or pihole
-just status         # Show container status
-just restart-immich # Restart the Immich docker stack
+just pull              # Pull all configs from hosts
+just diff              # Show what differs between local and host
+just push-pve          # Push Proxmox configs (network, fstab, backup, crontab)
+just push-pihole       # Push Pi-hole config and restart FTL
+just push-immich       # Push Immich configs to the host
+just ssh [target]      # SSH into pve, immich, or pihole
+just logs [target]     # Tail logs (immich, pihole, backup)
+just status            # Show container status
+just restart-immich    # Restart the Immich docker stack
 ```
 
 ## Sensitive files

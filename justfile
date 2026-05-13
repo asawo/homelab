@@ -122,7 +122,7 @@ restart-immich:
     ssh {{ pve }} "pct exec {{ immich_ct }} -- bash -c 'cd /opt/immich && docker compose down && docker compose up -d'"
 
 # Tail logs (e.g. `just logs immich`, `just logs pihole`, `just logs backup`)
-logs target:
+logs target="pihole":
     #!/usr/bin/env bash
     case "{{ target }}" in
         immich) ssh {{ pve }} "pct exec {{ immich_ct }} -- docker compose -f /opt/immich/docker-compose.yml logs -f --tail 100" ;;
