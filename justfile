@@ -34,6 +34,9 @@ diff:
 
     echo "Proxmox"
     check_diff "network.interfaces" proxmox/network.interfaces "cat /etc/network/interfaces"
+    check_diff "fstab" proxmox/fstab "cat /etc/fstab"
+    check_diff "borg-backup.sh" proxmox/borg-backup.sh "cat /usr/local/bin/borg-backup.sh"
+    check_diff "crontab" proxmox/crontab "crontab -l"
 
     echo "Pi-hole"
     check_diff "pihole.toml" pihole/pihole.toml "pct exec {{ pihole_ct }} -- cat /etc/pihole/pihole.toml"
@@ -57,6 +60,9 @@ pull:
     set -euo pipefail
     echo "Pulling Proxmox configs..."
     ssh {{ pve }} "cat /etc/network/interfaces" > proxmox/network.interfaces
+    ssh {{ pve }} "cat /etc/fstab" > proxmox/fstab
+    ssh {{ pve }} "cat /usr/local/bin/borg-backup.sh" > proxmox/borg-backup.sh
+    ssh {{ pve }} "crontab -l" > proxmox/crontab
     ssh {{ pve }} "pct config 100" > proxmox/ct-100-pihole.conf
     ssh {{ pve }} "pct config {{ immich_ct }}" > proxmox/ct-101-immich.conf
 
@@ -96,17 +102,34 @@ push-pihole:
     ssh {{ pve }} "pct exec {{ pihole_ct }} -- systemctl restart pihole-FTL"
     echo "Done."
 
-# Push Proxmox network config to the host
-push-network:
+# Push Proxmox configs to the host
+push-pve:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "Pushing network config..."
+    echo "Pushing Proxmox configs..."
+    echo "  network.interfaces"
     cat proxmox/network.interfaces | ssh {{ pve }} "tee /etc/network/interfaces > /dev/null"
-    echo "Done. Apply with: just ssh pve, then 'ifreload -a'"
+    echo "  fstab"
+    cat proxmox/fstab | ssh {{ pve }} "tee /etc/fstab > /dev/null"
+    echo "  borg-backup.sh"
+    cat proxmox/borg-backup.sh | ssh {{ pve }} "tee /usr/local/bin/borg-backup.sh > /dev/null && chmod +x /usr/local/bin/borg-backup.sh"
+    echo "  crontab"
+    cat proxmox/crontab | ssh {{ pve }} "crontab -"
+    echo "Done. Network changes need: just ssh pve, then 'ifreload -a'"
 
 # Restart Immich stack on the host
 restart-immich:
     ssh {{ pve }} "pct exec {{ immich_ct }} -- bash -c 'cd /opt/immich && docker compose down && docker compose up -d'"
+
+# Tail logs (e.g. `just logs immich`, `just logs pihole`, `just logs backup`)
+logs target:
+    #!/usr/bin/env bash
+    case "{{ target }}" in
+        immich) ssh {{ pve }} "pct exec {{ immich_ct }} -- docker compose -f /opt/immich/docker-compose.yml logs -f --tail 100" ;;
+        pihole) ssh {{ pve }} "pct exec {{ pihole_ct }} -- tail -f /var/log/pihole/pihole.log" ;;
+        backup) ssh {{ pve }} "tail -f /var/log/borg-backup.log" ;;
+        *)      echo "Unknown target: {{ target }} (try: immich, pihole, backup)"; exit 1 ;;
+    esac
 
 # Show container status
 status:
