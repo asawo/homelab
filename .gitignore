@@ -16,12 +16,8 @@
 proxmox/**/secret*
 proxmox/**/api-token*
 
-# Immich
-immich/.env
-
 # Pi-hole
-pihole/setupVars.conf
-pihole/**/pihole-FTL.db
+pihole/pihole-FTL.db
 
 # OS
 .DS_Store
