@@ -17,6 +17,7 @@ proxmox/**/secret*
 proxmox/**/api-token*
 
 # Pi-hole
+pihole/pihole.toml
 pihole/pihole-FTL.db
 
 # OS
