@@ -2,6 +2,7 @@ pve := "root@pve.lan"
 pihole_ct := "100"
 immich_ct := "101"
 copyparty_ct := "102"
+stirling_ct := "103"
 
 # List available commands
 default:
@@ -15,6 +16,7 @@ ssh target="pve":
         immich)   ssh -t {{ pve }} "pct enter {{ immich_ct }}" ;;
         pihole)   ssh -t {{ pve }} "pct enter {{ pihole_ct }}" ;;
         copyparty) ssh -t {{ pve }} "pct enter {{ copyparty_ct }}" ;;
+        stirling)  ssh -t {{ pve }} "pct enter {{ stirling_ct }}" ;;
         *)      echo "Unknown target: {{ target }}"; exit 1 ;;
     esac
 
@@ -57,6 +59,9 @@ diff:
         check_diff ".env" copyparty/.env "pct exec {{ copyparty_ct }} -- cat /opt/copyparty/.env"
     fi
 
+    echo "Stirling PDF"
+    check_diff "docker-compose.yml" "stirling-pdf/docker-compose.yml" "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml"
+
     if [ "$changed" -eq 0 ]; then
         echo ""
         echo "Everything in sync."
@@ -75,6 +80,7 @@ pull:
     ssh {{ pve }} "pct config {{ immich_ct }}" > proxmox/ct-101-immich.conf
 
     ssh {{ pve }} "pct config {{ copyparty_ct }}" > proxmox/ct-102-copyparty.conf
+    ssh {{ pve }} "pct config {{ stirling_ct }}" > proxmox/ct-103-stirling.conf
 
     echo "Pulling Pi-hole configs..."
     ssh {{ pve }} "pct exec {{ pihole_ct }} -- cat /etc/pihole/pihole.toml" > pihole/pihole.toml
@@ -88,6 +94,9 @@ pull:
     echo "Pulling Copyparty configs..."
     ssh {{ pve }} "pct exec {{ copyparty_ct }} -- cat /etc/systemd/system/copyparty.service" > copyparty/copyparty.service
     ssh {{ pve }} "pct exec {{ copyparty_ct }} -- cat /opt/copyparty/.env" > copyparty/.env
+
+    echo "Pulling Stirling PDF configs..."
+    ssh {{ pve }} "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml" > stirling-pdf/docker-compose.yml
 
     echo "Done. Run 'git diff' to see what changed."
 
@@ -146,9 +155,22 @@ push-copyparty:
     ssh {{ pve }} "pct exec {{ copyparty_ct }} -- bash -c 'systemctl daemon-reload && systemctl restart copyparty'"
     echo "Done."
 
+# Push Stirling PDF configs to the host
+push-stirling:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Pushing Stirling PDF configs..."
+    echo "  docker-compose.yml"
+    cat stirling-pdf/docker-compose.yml | ssh {{ pve }} "pct exec {{ stirling_ct }} -- tee /opt/stirling-pdf/docker-compose.yml > /dev/null"
+    echo "Done. Restart with: just restart-stirling"
+
 # Restart Immich stack on the host
 restart-immich:
     ssh {{ pve }} "pct exec {{ immich_ct }} -- bash -c 'cd /opt/immich && docker compose down && docker compose up -d'"
+
+# Restart Stirling PDF on the host
+restart-stirling:
+    ssh {{ pve }} "pct exec {{ stirling_ct }} -- bash -c 'cd /opt/stirling-pdf && docker compose down && docker compose up -d'"
 
 # Tail logs (e.g. `just logs immich`, `just logs pihole`, `just logs backup`)
 logs target="pihole":
@@ -157,8 +179,9 @@ logs target="pihole":
         immich)    ssh {{ pve }} "pct exec {{ immich_ct }} -- docker compose -f /opt/immich/docker-compose.yml logs -f --tail 100" ;;
         pihole)    ssh {{ pve }} "pct exec {{ pihole_ct }} -- tail -f /var/log/pihole/pihole.log" ;;
         copyparty) ssh {{ pve }} "pct exec {{ copyparty_ct }} -- journalctl -u copyparty -f" ;;
+        stirling)  ssh {{ pve }} "pct exec {{ stirling_ct }} -- docker compose -f /opt/stirling-pdf/docker-compose.yml logs -f --tail 100" ;;
         backup)    ssh {{ pve }} "tail -f /var/log/borg-backup.log" ;;
-        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, backup)"; exit 1 ;;
+        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, stirling, backup)"; exit 1 ;;
     esac
 
 # Show container status
