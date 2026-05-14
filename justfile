@@ -1,6 +1,7 @@
 pve := "root@pve.lan"
 pihole_ct := "100"
 immich_ct := "101"
+copyparty_ct := "102"
 
 # List available commands
 default:
@@ -10,9 +11,10 @@ default:
 ssh target="pve":
     #!/usr/bin/env bash
     case "{{ target }}" in
-        pve)    ssh {{ pve }} ;;
-        immich) ssh -t {{ pve }} "pct enter {{ immich_ct }}" ;;
-        pihole) ssh -t {{ pve }} "pct enter {{ pihole_ct }}" ;;
+        pve)      ssh {{ pve }} ;;
+        immich)   ssh -t {{ pve }} "pct enter {{ immich_ct }}" ;;
+        pihole)   ssh -t {{ pve }} "pct enter {{ pihole_ct }}" ;;
+        copyparty) ssh -t {{ pve }} "pct enter {{ copyparty_ct }}" ;;
         *)      echo "Unknown target: {{ target }}"; exit 1 ;;
     esac
 
@@ -49,6 +51,12 @@ diff:
         check_diff ".env" immich/.env "pct exec {{ immich_ct }} -- cat /opt/immich/.env"
     fi
 
+    echo "Copyparty"
+    check_diff "copyparty.service" copyparty/copyparty.service "pct exec {{ copyparty_ct }} -- cat /etc/systemd/system/copyparty.service"
+    if [ -f copyparty/.env ]; then
+        check_diff ".env" copyparty/.env "pct exec {{ copyparty_ct }} -- cat /opt/copyparty/.env"
+    fi
+
     if [ "$changed" -eq 0 ]; then
         echo ""
         echo "Everything in sync."
@@ -66,6 +74,8 @@ pull:
     ssh {{ pve }} "pct config 100" > proxmox/ct-100-pihole.conf
     ssh {{ pve }} "pct config {{ immich_ct }}" > proxmox/ct-101-immich.conf
 
+    ssh {{ pve }} "pct config {{ copyparty_ct }}" > proxmox/ct-102-copyparty.conf
+
     echo "Pulling Pi-hole configs..."
     ssh {{ pve }} "pct exec {{ pihole_ct }} -- cat /etc/pihole/pihole.toml" > pihole/pihole.toml
 
@@ -74,6 +84,10 @@ pull:
     ssh {{ pve }} "pct exec {{ immich_ct }} -- cat /opt/immich/hwaccel.transcoding.yml" > immich/hwaccel.transcoding.yml
     ssh {{ pve }} "pct exec {{ immich_ct }} -- cat /opt/immich/hwaccel.ml.yml" > immich/hwaccel.ml.yml
     ssh {{ pve }} "pct exec {{ immich_ct }} -- cat /opt/immich/.env" > immich/.env
+
+    echo "Pulling Copyparty configs..."
+    ssh {{ pve }} "pct exec {{ copyparty_ct }} -- cat /etc/systemd/system/copyparty.service" > copyparty/copyparty.service
+    ssh {{ pve }} "pct exec {{ copyparty_ct }} -- cat /opt/copyparty/.env" > copyparty/.env
 
     echo "Done. Run 'git diff' to see what changed."
 
@@ -117,6 +131,21 @@ push-pve:
     cat proxmox/crontab | ssh {{ pve }} "crontab -"
     echo "Done. Network changes need: just ssh pve, then 'ifreload -a'"
 
+# Push Copyparty configs to the host
+push-copyparty:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Pushing Copyparty configs..."
+    echo "  copyparty.service"
+    cat copyparty/copyparty.service | ssh {{ pve }} "pct exec {{ copyparty_ct }} -- tee /etc/systemd/system/copyparty.service > /dev/null"
+    if [ -f copyparty/.env ]; then
+        echo "  .env"
+        cat copyparty/.env | ssh {{ pve }} "pct exec {{ copyparty_ct }} -- tee /opt/copyparty/.env > /dev/null"
+    fi
+    echo "Restarting copyparty..."
+    ssh {{ pve }} "pct exec {{ copyparty_ct }} -- bash -c 'systemctl daemon-reload && systemctl restart copyparty'"
+    echo "Done."
+
 # Restart Immich stack on the host
 restart-immich:
     ssh {{ pve }} "pct exec {{ immich_ct }} -- bash -c 'cd /opt/immich && docker compose down && docker compose up -d'"
@@ -125,10 +154,11 @@ restart-immich:
 logs target="pihole":
     #!/usr/bin/env bash
     case "{{ target }}" in
-        immich) ssh {{ pve }} "pct exec {{ immich_ct }} -- docker compose -f /opt/immich/docker-compose.yml logs -f --tail 100" ;;
-        pihole) ssh {{ pve }} "pct exec {{ pihole_ct }} -- tail -f /var/log/pihole/pihole.log" ;;
-        backup) ssh {{ pve }} "tail -f /var/log/borg-backup.log" ;;
-        *)      echo "Unknown target: {{ target }} (try: immich, pihole, backup)"; exit 1 ;;
+        immich)    ssh {{ pve }} "pct exec {{ immich_ct }} -- docker compose -f /opt/immich/docker-compose.yml logs -f --tail 100" ;;
+        pihole)    ssh {{ pve }} "pct exec {{ pihole_ct }} -- tail -f /var/log/pihole/pihole.log" ;;
+        copyparty) ssh {{ pve }} "pct exec {{ copyparty_ct }} -- journalctl -u copyparty -f" ;;
+        backup)    ssh {{ pve }} "tail -f /var/log/borg-backup.log" ;;
+        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, backup)"; exit 1 ;;
     esac
 
 # Show container status

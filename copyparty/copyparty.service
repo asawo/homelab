@@ -1,0 +1,17 @@
+[Unit]
+Description=copyparty file server
+After=network.target
+
+[Service]
+Type=simple
+EnvironmentFile=/opt/copyparty/.env
+ExecStart=/opt/copyparty/venv/bin/copyparty \
+  -i 0.0.0.0 -p 3923 \
+  -a ${COPYPARTY_USER}:${COPYPARTY_PASS} \
+  -v /mnt/files::rwmd,${COPYPARTY_USER} \
+  -e2dsa --grid
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
