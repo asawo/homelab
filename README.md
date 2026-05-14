@@ -10,6 +10,7 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 | pihole | pihole.lan | DNS + ad blocking (LXC 100) |
 | immich | photos.home | Photo management (LXC 101) |
 | copyparty | files.home | File server for DAS (LXC 102) |
+| stirling-pdf | pdf.home | PDF tools (LXC 103) |
 
 ## Services
 
@@ -32,6 +33,10 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 - Serves `/mnt/storage/files` on port 3923 with password auth, Tailscale enabled
 - `.env` is gitignored (contains credentials) — see `.env.example` for template
 
+### Stirling PDF (CT 103)
+- Docker Compose running Stirling PDF for PDF manipulation tools
+- File storage at `/mnt/storage/files/NAS/stirling-pdf` on the DAS
+
 ## Usage
 
 Requires [just](https://github.com/casey/just).
@@ -43,10 +48,12 @@ just push-pve          # Push Proxmox configs (network, fstab, backup, crontab)
 just push-pihole       # Push Pi-hole config and restart FTL
 just push-immich       # Push Immich configs to the host
 just push-copyparty    # Push Copyparty configs and restart service
-just ssh [target]      # SSH into pve, immich, pihole, or copyparty
-just logs [target]     # Tail logs (immich, pihole, copyparty, backup)
+just push-stirling     # Push Stirling PDF docker-compose
+just ssh [target]      # SSH into pve, immich, pihole, copyparty, or stirling
+just logs [target]     # Tail logs (immich, pihole, copyparty, stirling, backup)
 just status            # Show container status
 just restart-immich    # Restart the Immich docker stack
+just restart-stirling  # Restart the Stirling PDF container
 ```
 
 ## Sensitive files
