@@ -3,6 +3,7 @@ pihole_ct := "100"
 immich_ct := "101"
 copyparty_ct := "102"
 stirling_ct := "103"
+sftpgo_ct := "104"
 
 # List available commands
 default:
@@ -17,6 +18,7 @@ ssh target="pve":
         pihole)   ssh -t {{ pve }} "pct enter {{ pihole_ct }}" ;;
         copyparty) ssh -t {{ pve }} "pct enter {{ copyparty_ct }}" ;;
         stirling)  ssh -t {{ pve }} "pct enter {{ stirling_ct }}" ;;
+        sftpgo)   ssh -t {{ pve }} "pct enter {{ sftpgo_ct }}" ;;
         *)      echo "Unknown target: {{ target }}"; exit 1 ;;
     esac
 
@@ -62,6 +64,11 @@ diff:
     echo "Stirling PDF"
     check_diff "docker-compose.yml" "stirling-pdf/docker-compose.yml" "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml"
 
+    echo "SFTPGo"
+    if [ -f sftpgo/.env ]; then
+        check_diff ".env" sftpgo/.env "pct exec {{ sftpgo_ct }} -- cat /opt/sftpgo/.env"
+    fi
+
     if [ "$changed" -eq 0 ]; then
         echo ""
         echo "Everything in sync."
@@ -81,6 +88,7 @@ pull:
 
     ssh {{ pve }} "pct config {{ copyparty_ct }}" > proxmox/ct-102-copyparty.conf
     ssh {{ pve }} "pct config {{ stirling_ct }}" > proxmox/ct-103-stirling.conf
+    ssh {{ pve }} "pct config {{ sftpgo_ct }}" > proxmox/ct-104-sftpgo.conf
 
     echo "Pulling Pi-hole configs..."
     ssh {{ pve }} "pct exec {{ pihole_ct }} -- cat /etc/pihole/pihole.toml" > pihole/pihole.toml
@@ -97,6 +105,9 @@ pull:
 
     echo "Pulling Stirling PDF configs..."
     ssh {{ pve }} "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml" > stirling-pdf/docker-compose.yml
+
+    echo "Pulling SFTPGo configs..."
+    ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- cat /opt/sftpgo/.env" > sftpgo/.env
 
     echo "Done. Run 'git diff' to see what changed."
 
@@ -164,6 +175,19 @@ push-stirling:
     cat stirling-pdf/docker-compose.yml | ssh {{ pve }} "pct exec {{ stirling_ct }} -- tee /opt/stirling-pdf/docker-compose.yml > /dev/null"
     echo "Done. Restart with: just restart-stirling"
 
+# Push SFTPGo configs to the host
+push-sftpgo:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Pushing SFTPGo configs..."
+    if [ -f sftpgo/.env ]; then
+        echo "  .env"
+        cat sftpgo/.env | ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- tee /opt/sftpgo/.env > /dev/null"
+    fi
+    echo "Restarting sftpgo..."
+    ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- systemctl restart sftpgo"
+    echo "Done."
+
 # Restart Immich stack on the host
 restart-immich:
     ssh {{ pve }} "pct exec {{ immich_ct }} -- bash -c 'cd /opt/immich && docker compose down && docker compose up -d'"
@@ -180,8 +204,9 @@ logs target="pihole":
         pihole)    ssh {{ pve }} "pct exec {{ pihole_ct }} -- tail -f /var/log/pihole/pihole.log" ;;
         copyparty) ssh {{ pve }} "pct exec {{ copyparty_ct }} -- journalctl -u copyparty -f" ;;
         stirling)  ssh {{ pve }} "pct exec {{ stirling_ct }} -- docker compose -f /opt/stirling-pdf/docker-compose.yml logs -f --tail 100" ;;
+        sftpgo)    ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- journalctl -u sftpgo -f" ;;
         backup)    ssh {{ pve }} "tail -f /var/log/borg-backup.log" ;;
-        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, stirling, backup)"; exit 1 ;;
+        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, stirling, sftpgo, backup)"; exit 1 ;;
     esac
 
 # Show container status
