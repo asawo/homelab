@@ -13,6 +13,7 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 | stirling-pdf | pdf.home | PDF tools (LXC 103) |
 | sftpgo | bucket.home | SFTP/WebDAV file server (LXC 104) |
 | filebrowser | nas.home | File browser (LXC 105) |
+| leafwiki | wiki.home | Wiki (LXC 106) |
 
 ## Services
 
@@ -39,7 +40,7 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 - Docker Compose running Stirling PDF for PDF manipulation tools
 - File storage at `/mnt/storage/files/NAS/stirling-pdf` on the DAS
 
-### SFTPGo (CT 104)
+### SFTPGo (CT 104) — not running
 - SFTP, WebDAV, and HTTP file server for the DAS
 - Serves `/mnt/storage/files` with web admin UI on port 8080
 - `.env` is gitignored (contains credentials) — see `.env.example` for template
@@ -47,6 +48,11 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 ### FileBrowser Quantum (CT 105)
 - Web-based file browser for the DAS
 - Serves `/mnt/storage/files` on port 8080
+
+### LeafWiki (CT 106)
+- Lightweight self-hosted wiki with Markdown stored on disk
+- Web UI on port 8080
+- `.env` is gitignored (contains JWT secret and admin password) — see `.env.example` for template
 
 ## Usage
 
@@ -62,8 +68,9 @@ just push-copyparty    # Push Copyparty configs and restart service
 just push-stirling     # Push Stirling PDF docker-compose
 just push-sftpgo       # Push SFTPGo configs and restart service
 just push-filebrowser  # Push FileBrowser configs and restart service
-just ssh [target]      # SSH into pve, immich, pihole, copyparty, stirling, sftpgo, or filebrowser
-just logs [target]     # Tail logs (immich, pihole, copyparty, stirling, sftpgo, filebrowser, backup)
+just push-leafwiki     # Push LeafWiki configs and restart service
+just ssh [target]      # SSH into pve, immich, pihole, copyparty, stirling, sftpgo, filebrowser, or leafwiki
+just logs [target]     # Tail logs (immich, pihole, copyparty, stirling, sftpgo, filebrowser, leafwiki, backup)
 just status            # Show container status
 just restart-immich    # Restart the Immich docker stack
 just restart-stirling  # Restart the Stirling PDF container

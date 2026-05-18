@@ -1,0 +1,14 @@
+[Unit]
+Description=LeafWiki
+After=network.target
+
+[Service]
+Type=simple
+User=leafwiki
+EnvironmentFile=/etc/leafwiki/.env
+ExecStart=/usr/local/bin/leafwiki
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

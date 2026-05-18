@@ -5,6 +5,7 @@ copyparty_ct := "102"
 stirling_ct := "103"
 sftpgo_ct := "104"
 filebrowser_ct := "105"
+leafwiki_ct := "106"
 
 # List available commands
 default:
@@ -21,6 +22,7 @@ ssh target="pve":
         stirling)  ssh -t {{ pve }} "pct enter {{ stirling_ct }}" ;;
         sftpgo)   ssh -t {{ pve }} "pct enter {{ sftpgo_ct }}" ;;
         filebrowser) ssh -t {{ pve }} "pct enter {{ filebrowser_ct }}" ;;
+        leafwiki) ssh -t {{ pve }} "pct enter {{ leafwiki_ct }}" ;;
         *)      echo "Unknown target: {{ target }}"; exit 1 ;;
     esac
 
@@ -66,14 +68,21 @@ diff:
     echo "Stirling PDF"
     check_diff "docker-compose.yml" "stirling-pdf/docker-compose.yml" "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml"
 
-    echo "SFTPGo"
-    if [ -f sftpgo/.env ]; then
-        check_diff ".env" sftpgo/.env "pct exec {{ sftpgo_ct }} -- cat /opt/sftpgo/.env"
-    fi
+    # SFTPGo (CT 104) is currently not running
+    # echo "SFTPGo"
+    # if [ -f sftpgo/.env ]; then
+    #     check_diff ".env" sftpgo/.env "pct exec {{ sftpgo_ct }} -- cat /opt/sftpgo/.env"
+    # fi
 
     echo "FileBrowser"
     check_diff "config.yaml" filebrowser/config.yaml "pct exec {{ filebrowser_ct }} -- cat /opt/filebrowser/config.yaml"
     check_diff "filebrowser.service" filebrowser/filebrowser.service "pct exec {{ filebrowser_ct }} -- cat /etc/systemd/system/filebrowser.service"
+
+    echo "LeafWiki"
+    check_diff "leafwiki.service" leafwiki/leafwiki.service "pct exec {{ leafwiki_ct }} -- cat /etc/systemd/system/leafwiki.service"
+    if [ -f leafwiki/.env ]; then
+        check_diff ".env" leafwiki/.env "pct exec {{ leafwiki_ct }} -- cat /etc/leafwiki/.env"
+    fi
 
     if [ "$changed" -eq 0 ]; then
         echo ""
@@ -96,6 +105,7 @@ pull:
     ssh {{ pve }} "pct config {{ stirling_ct }}" > proxmox/ct-103-stirling.conf
     ssh {{ pve }} "pct config {{ sftpgo_ct }}" > proxmox/ct-104-sftpgo.conf
     ssh {{ pve }} "pct config {{ filebrowser_ct }}" > proxmox/ct-105-filebrowser.conf
+    ssh {{ pve }} "pct config {{ leafwiki_ct }}" > proxmox/ct-106-leafwiki.conf
 
     echo "Pulling Pi-hole configs..."
     ssh {{ pve }} "pct exec {{ pihole_ct }} -- cat /etc/pihole/pihole.toml" > pihole/pihole.toml
@@ -113,12 +123,17 @@ pull:
     echo "Pulling Stirling PDF configs..."
     ssh {{ pve }} "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml" > stirling-pdf/docker-compose.yml
 
-    echo "Pulling SFTPGo configs..."
-    ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- cat /opt/sftpgo/.env" > sftpgo/.env
+    # SFTPGo (CT 104) is currently not running
+    # echo "Pulling SFTPGo configs..."
+    # ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- cat /opt/sftpgo/.env" > sftpgo/.env
 
     echo "Pulling FileBrowser configs..."
     ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /opt/filebrowser/config.yaml" > filebrowser/config.yaml
     ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /etc/systemd/system/filebrowser.service" > filebrowser/filebrowser.service
+
+    echo "Pulling LeafWiki configs..."
+    ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- cat /etc/systemd/system/leafwiki.service" > leafwiki/leafwiki.service
+    ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- cat /etc/leafwiki/.env" > leafwiki/.env
 
     echo "Done. Run 'git diff' to see what changed."
 
@@ -186,18 +201,18 @@ push-stirling:
     cat stirling-pdf/docker-compose.yml | ssh {{ pve }} "pct exec {{ stirling_ct }} -- tee /opt/stirling-pdf/docker-compose.yml > /dev/null"
     echo "Done. Restart with: just restart-stirling"
 
-# Push SFTPGo configs to the host
-push-sftpgo:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "Pushing SFTPGo configs..."
-    if [ -f sftpgo/.env ]; then
-        echo "  .env"
-        cat sftpgo/.env | ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- tee /opt/sftpgo/.env > /dev/null"
-    fi
-    echo "Restarting sftpgo..."
-    ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- systemctl restart sftpgo"
-    echo "Done."
+# Push SFTPGo configs to the host (currently not running)
+# push-sftpgo:
+#     #!/usr/bin/env bash
+#     set -euo pipefail
+#     echo "Pushing SFTPGo configs..."
+#     if [ -f sftpgo/.env ]; then
+#         echo "  .env"
+#         cat sftpgo/.env | ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- tee /opt/sftpgo/.env > /dev/null"
+#     fi
+#     echo "Restarting sftpgo..."
+#     ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- systemctl restart sftpgo"
+#     echo "Done."
 
 # Push FileBrowser configs to the host
 push-filebrowser:
@@ -210,6 +225,21 @@ push-filebrowser:
     cat filebrowser/filebrowser.service | ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- tee /etc/systemd/system/filebrowser.service > /dev/null"
     echo "Restarting filebrowser..."
     ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- bash -c 'systemctl daemon-reload && systemctl restart filebrowser'"
+    echo "Done."
+
+# Push LeafWiki configs to the host
+push-leafwiki:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Pushing LeafWiki configs..."
+    echo "  leafwiki.service"
+    cat leafwiki/leafwiki.service | ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- tee /etc/systemd/system/leafwiki.service > /dev/null"
+    if [ -f leafwiki/.env ]; then
+        echo "  .env"
+        cat leafwiki/.env | ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- tee /etc/leafwiki/.env > /dev/null"
+    fi
+    echo "Restarting leafwiki..."
+    ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- bash -c 'systemctl daemon-reload && systemctl restart leafwiki'"
     echo "Done."
 
 # Restart Immich stack on the host
@@ -230,8 +260,9 @@ logs target="pihole":
         stirling)  ssh {{ pve }} "pct exec {{ stirling_ct }} -- docker compose -f /opt/stirling-pdf/docker-compose.yml logs -f --tail 100" ;;
         sftpgo)    ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- journalctl -u sftpgo -f" ;;
         filebrowser) ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- journalctl -u filebrowser -f" ;;
+        leafwiki)  ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- journalctl -u leafwiki -f" ;;
         backup)    ssh {{ pve }} "tail -f /var/log/borg-backup.log" ;;
-        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, stirling, sftpgo, filebrowser, backup)"; exit 1 ;;
+        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, stirling, sftpgo, filebrowser, leafwiki, backup)"; exit 1 ;;
     esac
 
 # Show container status
