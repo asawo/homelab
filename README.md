@@ -35,12 +35,13 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 - Python file server for uploading/browsing files on the DAS
 - Serves `/mnt/storage/files` on port 3923 with password auth, Tailscale enabled
 - `.env` is gitignored (contains credentials) — see `.env.example` for template
+- Overlaps with SFTPGo and FileBrowser Quantum, but kept for the upload performance
 
 ### Stirling PDF (CT 103)
 - Docker Compose running Stirling PDF for PDF manipulation tools
 - File storage at `/mnt/storage/files/NAS/stirling-pdf` on the DAS
 
-### SFTPGo (CT 104) — not running
+### SFTPGo (CT 104) — `not running`
 - SFTP, WebDAV, and HTTP file server for the DAS
 - Serves `/mnt/storage/files` with web admin UI on port 8080
 - `.env` is gitignored (contains credentials) — see `.env.example` for template
@@ -66,7 +67,6 @@ just push-pihole       # Push Pi-hole config and restart FTL
 just push-immich       # Push Immich configs to the host
 just push-copyparty    # Push Copyparty configs and restart service
 just push-stirling     # Push Stirling PDF docker-compose
-just push-sftpgo       # Push SFTPGo configs and restart service
 just push-filebrowser  # Push FileBrowser configs and restart service
 just push-leafwiki     # Push LeafWiki configs and restart service
 just ssh [target]      # SSH into pve, immich, pihole, copyparty, stirling, sftpgo, filebrowser, or leafwiki
