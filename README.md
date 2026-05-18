@@ -12,6 +12,7 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 | copyparty | files.home | File server for DAS (LXC 102) |
 | stirling-pdf | pdf.home | PDF tools (LXC 103) |
 | sftpgo | bucket.home | SFTP/WebDAV file server (LXC 104) |
+| filebrowser | nas.home | File browser (LXC 105) |
 
 ## Services
 
@@ -43,6 +44,10 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 - Serves `/mnt/storage/files` with web admin UI on port 8080
 - `.env` is gitignored (contains credentials) — see `.env.example` for template
 
+### FileBrowser Quantum (CT 105)
+- Web-based file browser for the DAS
+- Serves `/mnt/storage/files` on port 8080
+
 ## Usage
 
 Requires [just](https://github.com/casey/just).
@@ -56,8 +61,9 @@ just push-immich       # Push Immich configs to the host
 just push-copyparty    # Push Copyparty configs and restart service
 just push-stirling     # Push Stirling PDF docker-compose
 just push-sftpgo       # Push SFTPGo configs and restart service
-just ssh [target]      # SSH into pve, immich, pihole, copyparty, stirling, or sftpgo
-just logs [target]     # Tail logs (immich, pihole, copyparty, stirling, sftpgo, backup)
+just push-filebrowser  # Push FileBrowser configs and restart service
+just ssh [target]      # SSH into pve, immich, pihole, copyparty, stirling, sftpgo, or filebrowser
+just logs [target]     # Tail logs (immich, pihole, copyparty, stirling, sftpgo, filebrowser, backup)
 just status            # Show container status
 just restart-immich    # Restart the Immich docker stack
 just restart-stirling  # Restart the Stirling PDF container

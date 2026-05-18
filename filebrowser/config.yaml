@@ -1,0 +1,8 @@
+server:
+  port: 8080
+  sources:
+    - path: "/mnt/files"
+      config:
+        defaultEnabled: true
+auth:
+  adminUsername: admin

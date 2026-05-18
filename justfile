@@ -4,6 +4,7 @@ immich_ct := "101"
 copyparty_ct := "102"
 stirling_ct := "103"
 sftpgo_ct := "104"
+filebrowser_ct := "105"
 
 # List available commands
 default:
@@ -19,6 +20,7 @@ ssh target="pve":
         copyparty) ssh -t {{ pve }} "pct enter {{ copyparty_ct }}" ;;
         stirling)  ssh -t {{ pve }} "pct enter {{ stirling_ct }}" ;;
         sftpgo)   ssh -t {{ pve }} "pct enter {{ sftpgo_ct }}" ;;
+        filebrowser) ssh -t {{ pve }} "pct enter {{ filebrowser_ct }}" ;;
         *)      echo "Unknown target: {{ target }}"; exit 1 ;;
     esac
 
@@ -69,6 +71,10 @@ diff:
         check_diff ".env" sftpgo/.env "pct exec {{ sftpgo_ct }} -- cat /opt/sftpgo/.env"
     fi
 
+    echo "FileBrowser"
+    check_diff "config.yaml" filebrowser/config.yaml "pct exec {{ filebrowser_ct }} -- cat /opt/filebrowser/config.yaml"
+    check_diff "filebrowser.service" filebrowser/filebrowser.service "pct exec {{ filebrowser_ct }} -- cat /etc/systemd/system/filebrowser.service"
+
     if [ "$changed" -eq 0 ]; then
         echo ""
         echo "Everything in sync."
@@ -89,6 +95,7 @@ pull:
     ssh {{ pve }} "pct config {{ copyparty_ct }}" > proxmox/ct-102-copyparty.conf
     ssh {{ pve }} "pct config {{ stirling_ct }}" > proxmox/ct-103-stirling.conf
     ssh {{ pve }} "pct config {{ sftpgo_ct }}" > proxmox/ct-104-sftpgo.conf
+    ssh {{ pve }} "pct config {{ filebrowser_ct }}" > proxmox/ct-105-filebrowser.conf
 
     echo "Pulling Pi-hole configs..."
     ssh {{ pve }} "pct exec {{ pihole_ct }} -- cat /etc/pihole/pihole.toml" > pihole/pihole.toml
@@ -108,6 +115,10 @@ pull:
 
     echo "Pulling SFTPGo configs..."
     ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- cat /opt/sftpgo/.env" > sftpgo/.env
+
+    echo "Pulling FileBrowser configs..."
+    ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /opt/filebrowser/config.yaml" > filebrowser/config.yaml
+    ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /etc/systemd/system/filebrowser.service" > filebrowser/filebrowser.service
 
     echo "Done. Run 'git diff' to see what changed."
 
@@ -188,6 +199,19 @@ push-sftpgo:
     ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- systemctl restart sftpgo"
     echo "Done."
 
+# Push FileBrowser configs to the host
+push-filebrowser:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Pushing FileBrowser configs..."
+    echo "  config.yaml"
+    cat filebrowser/config.yaml | ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- tee /opt/filebrowser/config.yaml > /dev/null"
+    echo "  filebrowser.service"
+    cat filebrowser/filebrowser.service | ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- tee /etc/systemd/system/filebrowser.service > /dev/null"
+    echo "Restarting filebrowser..."
+    ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- bash -c 'systemctl daemon-reload && systemctl restart filebrowser'"
+    echo "Done."
+
 # Restart Immich stack on the host
 restart-immich:
     ssh {{ pve }} "pct exec {{ immich_ct }} -- bash -c 'cd /opt/immich && docker compose down && docker compose up -d'"
@@ -205,8 +229,9 @@ logs target="pihole":
         copyparty) ssh {{ pve }} "pct exec {{ copyparty_ct }} -- journalctl -u copyparty -f" ;;
         stirling)  ssh {{ pve }} "pct exec {{ stirling_ct }} -- docker compose -f /opt/stirling-pdf/docker-compose.yml logs -f --tail 100" ;;
         sftpgo)    ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- journalctl -u sftpgo -f" ;;
+        filebrowser) ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- journalctl -u filebrowser -f" ;;
         backup)    ssh {{ pve }} "tail -f /var/log/borg-backup.log" ;;
-        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, stirling, sftpgo, backup)"; exit 1 ;;
+        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, stirling, sftpgo, filebrowser, backup)"; exit 1 ;;
     esac
 
 # Show container status

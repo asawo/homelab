@@ -1,0 +1,14 @@
+[Unit]
+Description=FileBrowser Quantum
+After=network.target
+
+[Service]
+Type=simple
+User=filebrowser
+WorkingDirectory=/opt/filebrowser
+ExecStart=/usr/local/bin/filebrowser -c /opt/filebrowser/config.yaml
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
