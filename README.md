@@ -23,7 +23,7 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 - Storage: `local` (dir) + `local-lvm` (lvmthin) + USB DAS (2x WD Red 1TB)
 - Nightly borg backup from `/mnt/storage` to `/mnt/backup` at 3am
 - Storage health check every 5 minutes (`proxmox/check-storage.sh`): detects the DAS mounts or a container's bind mount going stale (e.g. after the enclosure loses power), auto-fixes by remounting and/or rebooting the affected container, and alerts via [ntfy.sh](https://ntfy.sh) after 3 failed attempts instead of retrying forever
-  - Reads `NTFY_TOPIC` from `/usr/local/etc/check-storage.env` on the host — `check-storage.env` is gitignored (the topic is unauthenticated, so it's a secret), see `check-storage.env.example` for the template
+  - Reads `NTFY_TOPIC` from `/usr/local/etc/check-storage.env` on the host — `check-storage.env` is gitignored, see `check-storage.env.example` for the template
 
 ### Pi-hole (CT 100)
 - Pi-hole v6 with Cloudflare DNS upstream
