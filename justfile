@@ -50,6 +50,9 @@ diff:
     check_diff "borg-backup.sh" proxmox/borg-backup.sh "cat /usr/local/bin/borg-backup.sh"
     check_diff "check-storage.sh" proxmox/check-storage.sh "cat /usr/local/bin/check-storage.sh"
     check_diff "crontab" proxmox/crontab "crontab -l"
+    if [ -f proxmox/check-storage.env ]; then
+        check_diff "check-storage.env" proxmox/check-storage.env "cat /usr/local/etc/check-storage.env"
+    fi
 
     echo "Pi-hole"
     check_diff "pihole.toml" pihole/pihole.toml "pct exec {{ pihole_ct }} -- cat /etc/pihole/pihole.toml"
@@ -105,6 +108,7 @@ pull:
     ssh {{ pve }} "cat /usr/local/bin/borg-backup.sh" > proxmox/borg-backup.sh
     ssh {{ pve }} "cat /usr/local/bin/check-storage.sh" > proxmox/check-storage.sh
     ssh {{ pve }} "crontab -l" > proxmox/crontab
+    ssh {{ pve }} "cat /usr/local/etc/check-storage.env" > proxmox/check-storage.env 2>/dev/null || true
     ssh {{ pve }} "pct config 100" > proxmox/ct-100-pihole.conf
     ssh {{ pve }} "pct config {{ immich_ct }}" > proxmox/ct-101-immich.conf
 
@@ -186,6 +190,10 @@ push-pve:
     cat proxmox/borg-backup.sh | ssh {{ pve }} "tee /usr/local/bin/borg-backup.sh > /dev/null && chmod +x /usr/local/bin/borg-backup.sh"
     echo "  check-storage.sh"
     cat proxmox/check-storage.sh | ssh {{ pve }} "tee /usr/local/bin/check-storage.sh > /dev/null && chmod +x /usr/local/bin/check-storage.sh"
+    if [ -f proxmox/check-storage.env ]; then
+        echo "  check-storage.env"
+        cat proxmox/check-storage.env | ssh {{ pve }} "mkdir -p /usr/local/etc && tee /usr/local/etc/check-storage.env > /dev/null && chmod 600 /usr/local/etc/check-storage.env"
+    fi
     echo "  crontab"
     cat proxmox/crontab | ssh {{ pve }} "crontab -"
     echo "Done. Network changes need: just ssh pve, then 'ifreload -a'"

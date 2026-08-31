@@ -13,7 +13,11 @@ declare -A CT_PATHS=(
   [105]=/mnt/files
 )
 
-NTFY_TOPIC="lechte-homelab-health-2026"
+ENV_FILE="/usr/local/etc/check-storage.env"
+# shellcheck disable=SC1090
+[ -f "$ENV_FILE" ] && source "$ENV_FILE"
+: "${NTFY_TOPIC:?NTFY_TOPIC not set (add it to $ENV_FILE)}"
+
 STATE_FILE="/var/lib/homelab-check.state"
 MAX_ATTEMPTS=3
 REMINDER_INTERVAL=86400
