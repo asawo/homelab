@@ -9,7 +9,6 @@ declare -A CT_PATHS=(
   [101]=/mnt/immich
   [102]=/mnt/files
   [103]=/mnt/files
-  [104]=/mnt/files
   [105]=/mnt/files
 )
 
