@@ -107,6 +107,11 @@ diff:
     check_diff "blackbox.yml" "monitoring/blackbox/blackbox.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/blackbox/blackbox.yml"
     check_diff "central-relay.alloy" "monitoring/alloy/central-relay.alloy" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alloy/central-relay.alloy"
     check_diff "journal-remote.conf" "monitoring/journal-remote/journal-remote.conf" "pct exec {{ monitoring_ct }} -- cat /etc/systemd/journal-remote.conf"
+    check_diff "datasources.yml" "monitoring/grafana/provisioning/datasources/datasources.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/datasources/datasources.yml"
+    check_diff "dashboards.yml" "monitoring/grafana/provisioning/dashboards/dashboards.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/dashboards.yml"
+    check_diff "adguard.json" "monitoring/grafana/provisioning/dashboards/adguard.json" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/adguard.json"
+    check_diff "fleet-overview.json" "monitoring/grafana/provisioning/dashboards/fleet-overview.json" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/fleet-overview.json"
+    check_diff "uptime-status.json" "monitoring/grafana/provisioning/dashboards/uptime-status.json" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/uptime-status.json"
     if [ -f monitoring/.env ]; then
         check_diff ".env" monitoring/.env "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/.env"
     fi
@@ -181,6 +186,11 @@ pull:
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/blackbox/blackbox.yml" > monitoring/blackbox/blackbox.yml
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alloy/central-relay.alloy" > monitoring/alloy/central-relay.alloy
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /etc/systemd/journal-remote.conf" > monitoring/journal-remote/journal-remote.conf 2>/dev/null || true
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/datasources/datasources.yml" > monitoring/grafana/provisioning/datasources/datasources.yml
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/dashboards.yml" > monitoring/grafana/provisioning/dashboards/dashboards.yml
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/adguard.json" > monitoring/grafana/provisioning/dashboards/adguard.json
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/fleet-overview.json" > monitoring/grafana/provisioning/dashboards/fleet-overview.json
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/uptime-status.json" > monitoring/grafana/provisioning/dashboards/uptime-status.json
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/.env" > monitoring/.env 2>/dev/null || true
     ssh {{ pve }} "pct config {{ monitoring_ct }}" > proxmox/ct-108-monitoring.conf
     ssh {{ pve }} "cat /etc/systemd/journal-upload.conf" > proxmox/journal-upload.conf 2>/dev/null || true
@@ -333,6 +343,13 @@ push-monitoring:
     fi
     echo "  journal-remote.conf (native, on CT 108)"
     cat monitoring/journal-remote/journal-remote.conf | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /etc/systemd/journal-remote.conf > /dev/null"
+    echo "  grafana provisioning"
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- mkdir -p /opt/monitoring/grafana/provisioning/datasources /opt/monitoring/grafana/provisioning/dashboards"
+    cat monitoring/grafana/provisioning/datasources/datasources.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/datasources/datasources.yml > /dev/null"
+    cat monitoring/grafana/provisioning/dashboards/dashboards.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/dashboards.yml > /dev/null"
+    cat monitoring/grafana/provisioning/dashboards/adguard.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/adguard.json > /dev/null"
+    cat monitoring/grafana/provisioning/dashboards/fleet-overview.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/fleet-overview.json > /dev/null"
+    cat monitoring/grafana/provisioning/dashboards/uptime-status.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/uptime-status.json > /dev/null"
 
     echo "Pushing journal-upload.conf to host + native-systemd LXCs..."
     echo "  host"
