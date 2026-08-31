@@ -1,1 +1,2 @@
 0 3 * * * /usr/local/bin/borg-backup.sh >> /var/log/borg-backup.log 2>&1
+*/5 * * * * /usr/local/bin/check-storage.sh >> /var/log/storage-check.log 2>&1

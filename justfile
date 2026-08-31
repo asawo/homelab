@@ -46,6 +46,7 @@ diff:
     check_diff "network.interfaces" proxmox/network.interfaces "cat /etc/network/interfaces"
     check_diff "fstab" proxmox/fstab "cat /etc/fstab"
     check_diff "borg-backup.sh" proxmox/borg-backup.sh "cat /usr/local/bin/borg-backup.sh"
+    check_diff "check-storage.sh" proxmox/check-storage.sh "cat /usr/local/bin/check-storage.sh"
     check_diff "crontab" proxmox/crontab "crontab -l"
 
     echo "Pi-hole"
@@ -97,6 +98,7 @@ pull:
     ssh {{ pve }} "cat /etc/network/interfaces" > proxmox/network.interfaces
     ssh {{ pve }} "cat /etc/fstab" > proxmox/fstab
     ssh {{ pve }} "cat /usr/local/bin/borg-backup.sh" > proxmox/borg-backup.sh
+    ssh {{ pve }} "cat /usr/local/bin/check-storage.sh" > proxmox/check-storage.sh
     ssh {{ pve }} "crontab -l" > proxmox/crontab
     ssh {{ pve }} "pct config 100" > proxmox/ct-100-pihole.conf
     ssh {{ pve }} "pct config {{ immich_ct }}" > proxmox/ct-101-immich.conf
@@ -173,6 +175,8 @@ push-pve:
     cat proxmox/fstab | ssh {{ pve }} "tee /etc/fstab > /dev/null"
     echo "  borg-backup.sh"
     cat proxmox/borg-backup.sh | ssh {{ pve }} "tee /usr/local/bin/borg-backup.sh > /dev/null && chmod +x /usr/local/bin/borg-backup.sh"
+    echo "  check-storage.sh"
+    cat proxmox/check-storage.sh | ssh {{ pve }} "tee /usr/local/bin/check-storage.sh > /dev/null && chmod +x /usr/local/bin/check-storage.sh"
     echo "  crontab"
     cat proxmox/crontab | ssh {{ pve }} "crontab -"
     echo "Done. Network changes need: just ssh pve, then 'ifreload -a'"
@@ -262,9 +266,14 @@ logs target="pihole":
         filebrowser) ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- journalctl -u filebrowser -f" ;;
         leafwiki)  ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- journalctl -u leafwiki -f" ;;
         backup)    ssh {{ pve }} "tail -f /var/log/borg-backup.log" ;;
-        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, stirling, sftpgo, filebrowser, leafwiki, backup)"; exit 1 ;;
+        storage-check) ssh {{ pve }} "tail -f /var/log/storage-check.log" ;;
+        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, stirling, sftpgo, filebrowser, leafwiki, backup, storage-check)"; exit 1 ;;
     esac
 
 # Show container status
 status:
     @ssh {{ pve }} "pct list"
+
+# Manually run the storage health check (normally runs every 5 min via cron)
+check-storage:
+    ssh {{ pve }} "/usr/local/bin/check-storage.sh"
