@@ -20,6 +20,9 @@ proxmox/**/api-token*
 pihole/pihole.toml
 pihole/pihole-FTL.db
 
+# AdGuard Home
+adguard/conf/AdGuardHome.yaml
+
 # OS
 .DS_Store
 Thumbs.db

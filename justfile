@@ -6,6 +6,7 @@ stirling_ct := "103"
 sftpgo_ct := "104"
 filebrowser_ct := "105"
 leafwiki_ct := "106"
+adguard_ct := "107"
 
 # List available commands
 default:
@@ -23,6 +24,7 @@ ssh target="pve":
         sftpgo)   ssh -t {{ pve }} "pct enter {{ sftpgo_ct }}" ;;
         filebrowser) ssh -t {{ pve }} "pct enter {{ filebrowser_ct }}" ;;
         leafwiki) ssh -t {{ pve }} "pct enter {{ leafwiki_ct }}" ;;
+        adguard)  ssh -t {{ pve }} "pct enter {{ adguard_ct }}" ;;
         *)      echo "Unknown target: {{ target }}"; exit 1 ;;
     esac
 
@@ -69,6 +71,9 @@ diff:
     echo "Stirling PDF"
     check_diff "docker-compose.yml" "stirling-pdf/docker-compose.yml" "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml"
 
+    echo "AdGuard Home"
+    check_diff "docker-compose.yml" "adguard/docker-compose.yml" "pct exec {{ adguard_ct }} -- cat /opt/adguard/docker-compose.yml"
+
     # SFTPGo (CT 104) is currently not running
     # echo "SFTPGo"
     # if [ -f sftpgo/.env ]; then
@@ -108,6 +113,7 @@ pull:
     ssh {{ pve }} "pct config {{ sftpgo_ct }}" > proxmox/ct-104-sftpgo.conf
     ssh {{ pve }} "pct config {{ filebrowser_ct }}" > proxmox/ct-105-filebrowser.conf
     ssh {{ pve }} "pct config {{ leafwiki_ct }}" > proxmox/ct-106-leafwiki.conf
+    ssh {{ pve }} "pct config {{ adguard_ct }}" > proxmox/ct-107-adguard.conf
 
     echo "Pulling Pi-hole configs..."
     ssh {{ pve }} "pct exec {{ pihole_ct }} -- cat /etc/pihole/pihole.toml" > pihole/pihole.toml
@@ -124,6 +130,9 @@ pull:
 
     echo "Pulling Stirling PDF configs..."
     ssh {{ pve }} "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml" > stirling-pdf/docker-compose.yml
+
+    echo "Pulling AdGuard Home configs..."
+    ssh {{ pve }} "pct exec {{ adguard_ct }} -- cat /opt/adguard/docker-compose.yml" > adguard/docker-compose.yml
 
     # SFTPGo (CT 104) is currently not running
     # echo "Pulling SFTPGo configs..."
@@ -205,6 +214,15 @@ push-stirling:
     cat stirling-pdf/docker-compose.yml | ssh {{ pve }} "pct exec {{ stirling_ct }} -- tee /opt/stirling-pdf/docker-compose.yml > /dev/null"
     echo "Done. Restart with: just restart-stirling"
 
+# Push AdGuard Home configs to the host
+push-adguard:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Pushing AdGuard Home configs..."
+    echo "  docker-compose.yml"
+    cat adguard/docker-compose.yml | ssh {{ pve }} "pct exec {{ adguard_ct }} -- tee /opt/adguard/docker-compose.yml > /dev/null"
+    echo "Done. Restart with: just restart-adguard"
+
 # Push SFTPGo configs to the host (currently not running)
 # push-sftpgo:
 #     #!/usr/bin/env bash
@@ -254,6 +272,10 @@ restart-immich:
 restart-stirling:
     ssh {{ pve }} "pct exec {{ stirling_ct }} -- bash -c 'cd /opt/stirling-pdf && docker compose down && docker compose up -d'"
 
+# Restart AdGuard Home on the host
+restart-adguard:
+    ssh {{ pve }} "pct exec {{ adguard_ct }} -- bash -c 'cd /opt/adguard && docker compose down && docker compose up -d'"
+
 # Tail logs (e.g. `just logs immich`, `just logs pihole`, `just logs backup`)
 logs target="pihole":
     #!/usr/bin/env bash
@@ -265,9 +287,10 @@ logs target="pihole":
         sftpgo)    ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- journalctl -u sftpgo -f" ;;
         filebrowser) ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- journalctl -u filebrowser -f" ;;
         leafwiki)  ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- journalctl -u leafwiki -f" ;;
+        adguard)   ssh {{ pve }} "pct exec {{ adguard_ct }} -- docker compose -f /opt/adguard/docker-compose.yml logs -f --tail 100" ;;
         backup)    ssh {{ pve }} "tail -f /var/log/borg-backup.log" ;;
         storage-check) ssh {{ pve }} "tail -f /var/log/storage-check.log" ;;
-        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, stirling, sftpgo, filebrowser, leafwiki, backup, storage-check)"; exit 1 ;;
+        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, stirling, sftpgo, filebrowser, leafwiki, adguard, backup, storage-check)"; exit 1 ;;
     esac
 
 # Show container status
