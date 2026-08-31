@@ -74,6 +74,7 @@ just ssh [target]      # SSH into pve, immich, pihole, copyparty, stirling, sftp
 just logs [target]     # Tail logs (immich, pihole, copyparty, stirling, sftpgo, filebrowser, leafwiki, backup, storage-check)
 just status            # Show container status
 just check-storage     # Manually run the storage health check
+just update-tailscale  # Upgrade Tailscale on all LXCs that have it installed
 just restart-immich    # Restart the Immich docker stack
 just restart-stirling  # Restart the Stirling PDF container
 ```
