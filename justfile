@@ -277,3 +277,17 @@ status:
 # Manually run the storage health check (normally runs every 5 min via cron)
 check-storage:
     ssh {{ pve }} "/usr/local/bin/check-storage.sh"
+
+# Update Tailscale on all LXCs that have it installed
+update-tailscale:
+    #!/usr/bin/env bash
+    set -e
+    for ct in 100 101 102 103 105 106; do
+        echo "=== CT $ct ==="
+        ssh {{ pve }} "pct exec $ct -- bash -c 'apt-get update -qq && apt-get install --only-upgrade -y tailscale'"
+    done
+    echo "Done. Current versions:"
+    for ct in 100 101 102 103 105 106; do
+        echo -n "CT $ct: "
+        ssh {{ pve }} "pct exec $ct -- tailscale version | head -1"
+    done
