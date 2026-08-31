@@ -57,7 +57,7 @@ scrape_configs:
 
   - job_name: adguard
     static_configs:
-      - targets: ['adguard-exporter:9617']
+      - targets: ['adguard-exporter:9618']
 
   # Synthetic HTTP checks against each in-scope service's web UI.
   # Verify hostnames/ports against README before first rollout.
@@ -69,7 +69,7 @@ scrape_configs:
       - targets:
           - http://photos.home:2283 # immich
           - http://files.home:3923 # copyparty
-          - http://pdf.home:8080 # stirling-pdf
+          - http://pdf.home:8080/api/v1/info/status # stirling-pdf -- root path requires login (401), this doesn't
           - http://nas.home:8080 # filebrowser
           - http://wiki.home:8080 # leafwiki
           - http://adguard.home:80 # adguard -- README says 3000, but the live container actually listens on 80; flag the doc drift separately

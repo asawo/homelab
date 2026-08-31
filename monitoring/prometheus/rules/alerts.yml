@@ -9,8 +9,12 @@
 groups:
   - name: monitoring
     rules:
+      # Scoped to the in-scope LXCs only (101-103, 105-107) + the host itself
+      # (id="" for the pve.lan/cluster-level series) -- Pi-hole (100) and
+      # SFTPGo (104) are deliberately stopped/deprecated and would otherwise
+      # false-alarm here, since pve-exporter reports on the whole cluster.
       - alert: TargetDown
-        expr: pve_up == 0
+        expr: pve_up{id=~"lxc/10[1235-7]|"} == 0
         for: 2m
         labels:
           severity: critical

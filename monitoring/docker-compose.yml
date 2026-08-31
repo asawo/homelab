@@ -105,11 +105,13 @@ services:
   # AdGuard has no built-in Prometheus endpoint; this hits its JSON API instead.
   adguard-exporter:
     container_name: monitoring_adguard_exporter
-    image: ghcr.io/attilagyorffy/prometheus-exporter-adguard-home:latest
-    env_file:
-      - .env
+    image: ghcr.io/henrywhitaker3/adguard-exporter:latest
+    environment:
+      ADGUARD_SERVERS: ${ADGUARD_URL}
+      ADGUARD_USERNAMES: ${ADGUARD_USERNAME}
+      ADGUARD_PASSWORDS: ${ADGUARD_PASSWORD}
     ports:
-      - '9617:9617'
+      - '9618:9618'
     mem_limit: 50m
     restart: always
 
