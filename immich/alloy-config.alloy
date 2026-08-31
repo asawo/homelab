@@ -1,0 +1,20 @@
+// Docker-log-source only -- this LXC's journald goes via systemd-journal-upload
+// instead (see monitoring/journal-upload.conf), keeping this instance's
+// footprint to just the one thing that can't be centralized: local Docker
+// socket access.
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+loki.source.docker "default" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.containers.targets
+  labels     = { lxc = "immich" }
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://monitoring.home:3100/loki/api/v1/push"
+  }
+}

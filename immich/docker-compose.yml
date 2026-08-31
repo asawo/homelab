@@ -26,6 +26,8 @@ services:
       - .env
     ports:
       - '2283:2283'
+      - '${IMMICH_API_METRICS_PORT:-8081}:8081'
+      - '${IMMICH_MICROSERVICES_METRICS_PORT:-8082}:8082'
     depends_on:
       - redis
       - database
@@ -75,6 +77,36 @@ services:
     restart: always
     healthcheck:
       disable: false
+
+  # Per-container resource metrics, scraped remotely by the central Prometheus
+  # in CT 108. Port 9280 kept uniform across all 3 Docker-based LXCs.
+  cadvisor:
+    container_name: immich_cadvisor
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    ports:
+      - '9280:8080'
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    mem_limit: 200m
+    restart: always
+
+  # Ships this LXC's Docker container logs to the central Loki. Journald logs
+  # go via systemd-journal-upload instead -- see monitoring/journal-upload.conf.
+  alloy:
+    container_name: immich_alloy
+    image: grafana/alloy:latest
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: ["run", "--server.http.listen-addr=127.0.0.1:12345", "/etc/alloy/config.alloy"]
+    mem_limit: 300m
+    restart: always
 
 volumes:
   model-cache:

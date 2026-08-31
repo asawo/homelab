@@ -1,2 +1,2 @@
 0 3 * * * /usr/local/bin/borg-backup.sh >> /var/log/borg-backup.log 2>&1
-*/5 * * * * /usr/local/bin/check-storage.sh >> /var/log/storage-check.log 2>&1
+*/5 * * * * /usr/local/bin/check-storage.sh 2>&1 | tee -a /var/log/storage-check.log | systemd-cat -t check-storage

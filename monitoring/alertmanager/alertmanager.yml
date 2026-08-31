@@ -1,0 +1,15 @@
+# Webhook path/payload here depends on which Alertmanager->ntfy bridge image
+# is pinned in docker-compose.yml (see the comment there) -- confirm the
+# expected path against that image's docs before first rollout.
+route:
+  receiver: ntfy
+  group_by: ['alertname']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: ntfy
+    webhook_configs:
+      - url: http://alertmanager-ntfy:8080/alert
+        send_resolved: true

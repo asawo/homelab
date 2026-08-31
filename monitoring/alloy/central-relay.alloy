@@ -1,0 +1,16 @@
+// Only component loaded: reads the merged journal directory written by the
+// native systemd-journal-remote receiver (host + Copyparty + FileBrowser +
+// LeafWiki all forward here via systemd-journal-upload). This is the one
+// Alloy instance covering all journald-only log sources -- see README for
+// why this isn't 4 separate Alloy instances.
+loki.source.journal "remote" {
+  path       = "/var/log/journal/remote"
+  forward_to = [loki.write.default.receiver]
+  labels     = { job = "journal-remote" }
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

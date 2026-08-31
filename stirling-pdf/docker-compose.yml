@@ -14,3 +14,34 @@ services:
       DOCKER_ENABLE_SECURITY: "false"
       LANGS: "en_US"
     restart: always
+
+  # Per-container resource metrics -- Stirling PDF's own /actuator/prometheus
+  # endpoint is Enterprise-license-gated, so this is metrics-only coverage
+  # for this service (no app-native metrics).
+  cadvisor:
+    container_name: stirling_cadvisor
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    ports:
+      - '9280:8080'
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    mem_limit: 200m
+    restart: always
+
+  # Ships this LXC's Docker container logs to the central Loki. Journald logs
+  # go via systemd-journal-upload instead -- see monitoring/journal-upload.conf.
+  alloy:
+    container_name: stirling_alloy
+    image: grafana/alloy:latest
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: ["run", "--server.http.listen-addr=127.0.0.1:12345", "/etc/alloy/config.alloy"]
+    mem_limit: 300m
+    restart: always

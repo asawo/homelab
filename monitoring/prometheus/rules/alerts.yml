@@ -1,0 +1,50 @@
+# Covers container/host-down, resource saturation, and failed HTTP checks --
+# deliberately different failure modes than proxmox/check-storage.sh (DAS
+# mount staleness + auto-remediation), so the two systems don't duplicate
+# alerts. check-storage.sh's own ntfy alerting is untouched by this stack.
+#
+# Metric names below are prometheus-pve-exporter's documented names as of
+# this writing -- verify against real scrape output once CT 108 is live and
+# adjust if the exporter version in use differs.
+groups:
+  - name: monitoring
+    rules:
+      - alert: TargetDown
+        expr: pve_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.instance }} is unreachable"
+
+      - alert: HttpCheckFailing
+        expr: probe_success == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP check failing for {{ $labels.instance }}"
+
+      - alert: HighCpuUsage
+        expr: pve_cpu_usage_ratio > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.instance }} CPU usage above 90% for 10m"
+
+      - alert: HighMemoryUsage
+        expr: (pve_memory_usage_bytes / pve_memory_size_bytes) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.instance }} memory usage above 90% for 10m"
+
+      - alert: RootDiskAlmostFull
+        expr: (pve_disk_usage_bytes / pve_disk_size_bytes) > 0.85
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.instance }} root disk usage above 85% (distinct from check-storage.sh's DAS mount checks)"

@@ -9,3 +9,36 @@ services:
     volumes:
       - ./work:/opt/adguardhome/work
       - ./conf:/opt/adguardhome/conf
+
+  # Per-container resource metrics. adguardhome uses network_mode: host, but
+  # these sidecars deliberately don't -- they don't need it, and it'd be one
+  # more thing sharing the host's DNS ports for no reason.
+  cadvisor:
+    container_name: adguard_cadvisor
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    ports:
+      - '9280:8080'
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    mem_limit: 200m
+    restart: always
+
+  # Ships this LXC's Docker container logs to the central Loki. Journald logs
+  # go via systemd-journal-upload instead -- see monitoring/journal-upload.conf.
+  # AdGuard's own DNS query metrics come from a separate central exporter
+  # (monitoring/docker-compose.yml's adguard-exporter), not from here.
+  alloy:
+    container_name: adguard_alloy
+    image: grafana/alloy:latest
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: ["run", "--server.http.listen-addr=127.0.0.1:12345", "/etc/alloy/config.alloy"]
+    mem_limit: 300m
+    restart: always

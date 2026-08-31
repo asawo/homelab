@@ -7,6 +7,7 @@ sftpgo_ct := "104"
 filebrowser_ct := "105"
 leafwiki_ct := "106"
 adguard_ct := "107"
+monitoring_ct := "108"
 
 # List available commands
 default:
@@ -25,6 +26,7 @@ ssh target="pve":
         filebrowser) ssh -t {{ pve }} "pct enter {{ filebrowser_ct }}" ;;
         leafwiki) ssh -t {{ pve }} "pct enter {{ leafwiki_ct }}" ;;
         adguard)  ssh -t {{ pve }} "pct enter {{ adguard_ct }}" ;;
+        monitoring) ssh -t {{ pve }} "pct enter {{ monitoring_ct }}" ;;
         *)      echo "Unknown target: {{ target }}"; exit 1 ;;
     esac
 
@@ -58,7 +60,7 @@ diff:
     check_diff "pihole.toml" pihole/pihole.toml "pct exec {{ pihole_ct }} -- cat /etc/pihole/pihole.toml"
 
     echo "Immich"
-    for f in docker-compose.yml hwaccel.transcoding.yml hwaccel.ml.yml; do
+    for f in docker-compose.yml hwaccel.transcoding.yml hwaccel.ml.yml alloy-config.alloy; do
         check_diff "$f" "immich/$f" "pct exec {{ immich_ct }} -- cat /opt/immich/$f"
     done
     if [ -f immich/.env ]; then
@@ -73,9 +75,11 @@ diff:
 
     echo "Stirling PDF"
     check_diff "docker-compose.yml" "stirling-pdf/docker-compose.yml" "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml"
+    check_diff "alloy-config.alloy" "stirling-pdf/alloy-config.alloy" "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/alloy-config.alloy"
 
     echo "AdGuard Home"
     check_diff "docker-compose.yml" "adguard/docker-compose.yml" "pct exec {{ adguard_ct }} -- cat /opt/adguard/docker-compose.yml"
+    check_diff "alloy-config.alloy" "adguard/alloy-config.alloy" "pct exec {{ adguard_ct }} -- cat /opt/adguard/alloy-config.alloy"
 
     # SFTPGo (CT 104) is currently not running
     # echo "SFTPGo"
@@ -91,6 +95,19 @@ diff:
     check_diff "leafwiki.service" leafwiki/leafwiki.service "pct exec {{ leafwiki_ct }} -- cat /etc/systemd/system/leafwiki.service"
     if [ -f leafwiki/.env ]; then
         check_diff ".env" leafwiki/.env "pct exec {{ leafwiki_ct }} -- cat /etc/leafwiki/.env"
+    fi
+
+    echo "Monitoring"
+    check_diff "docker-compose.yml" "monitoring/docker-compose.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/docker-compose.yml"
+    check_diff "prometheus.yml" "monitoring/prometheus/prometheus.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/prometheus/prometheus.yml"
+    check_diff "alerts.yml" "monitoring/prometheus/rules/alerts.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/prometheus/rules/alerts.yml"
+    check_diff "alertmanager.yml" "monitoring/alertmanager/alertmanager.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alertmanager/alertmanager.yml"
+    check_diff "loki-config.yml" "monitoring/loki/loki-config.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/loki/loki-config.yml"
+    check_diff "blackbox.yml" "monitoring/blackbox/blackbox.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/blackbox/blackbox.yml"
+    check_diff "central-relay.alloy" "monitoring/alloy/central-relay.alloy" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alloy/central-relay.alloy"
+    check_diff "journal-remote.conf" "monitoring/journal-remote/journal-remote.conf" "pct exec {{ monitoring_ct }} -- cat /etc/systemd/journal-remote.conf"
+    if [ -f monitoring/.env ]; then
+        check_diff ".env" monitoring/.env "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/.env"
     fi
 
     if [ "$changed" -eq 0 ]; then
@@ -127,6 +144,7 @@ pull:
     ssh {{ pve }} "pct exec {{ immich_ct }} -- cat /opt/immich/hwaccel.transcoding.yml" > immich/hwaccel.transcoding.yml
     ssh {{ pve }} "pct exec {{ immich_ct }} -- cat /opt/immich/hwaccel.ml.yml" > immich/hwaccel.ml.yml
     ssh {{ pve }} "pct exec {{ immich_ct }} -- cat /opt/immich/.env" > immich/.env
+    ssh {{ pve }} "pct exec {{ immich_ct }} -- cat /opt/immich/alloy-config.alloy" > immich/alloy-config.alloy
 
     echo "Pulling Copyparty configs..."
     ssh {{ pve }} "pct exec {{ copyparty_ct }} -- cat /etc/systemd/system/copyparty.service" > copyparty/copyparty.service
@@ -134,9 +152,11 @@ pull:
 
     echo "Pulling Stirling PDF configs..."
     ssh {{ pve }} "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml" > stirling-pdf/docker-compose.yml
+    ssh {{ pve }} "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/alloy-config.alloy" > stirling-pdf/alloy-config.alloy
 
     echo "Pulling AdGuard Home configs..."
     ssh {{ pve }} "pct exec {{ adguard_ct }} -- cat /opt/adguard/docker-compose.yml" > adguard/docker-compose.yml
+    ssh {{ pve }} "pct exec {{ adguard_ct }} -- cat /opt/adguard/alloy-config.alloy" > adguard/alloy-config.alloy
 
     # SFTPGo (CT 104) is currently not running
     # echo "Pulling SFTPGo configs..."
@@ -150,6 +170,19 @@ pull:
     ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- cat /etc/systemd/system/leafwiki.service" > leafwiki/leafwiki.service
     ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- cat /etc/leafwiki/.env" > leafwiki/.env
 
+    echo "Pulling Monitoring configs..."
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/docker-compose.yml" > monitoring/docker-compose.yml
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/prometheus/prometheus.yml" > monitoring/prometheus/prometheus.yml
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/prometheus/rules/alerts.yml" > monitoring/prometheus/rules/alerts.yml
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alertmanager/alertmanager.yml" > monitoring/alertmanager/alertmanager.yml
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/loki/loki-config.yml" > monitoring/loki/loki-config.yml
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/blackbox/blackbox.yml" > monitoring/blackbox/blackbox.yml
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alloy/central-relay.alloy" > monitoring/alloy/central-relay.alloy
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /etc/systemd/journal-remote.conf" > monitoring/journal-remote/journal-remote.conf 2>/dev/null || true
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/.env" > monitoring/.env 2>/dev/null || true
+    ssh {{ pve }} "pct config {{ monitoring_ct }}" > proxmox/ct-108-monitoring.conf
+    ssh {{ pve }} "cat /etc/systemd/journal-upload.conf" > proxmox/journal-upload.conf 2>/dev/null || true
+
     echo "Done. Run 'git diff' to see what changed."
 
 # Push Immich configs to the host
@@ -157,7 +190,7 @@ push-immich:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "Pushing Immich configs..."
-    for f in docker-compose.yml hwaccel.transcoding.yml hwaccel.ml.yml; do
+    for f in docker-compose.yml hwaccel.transcoding.yml hwaccel.ml.yml alloy-config.alloy; do
         echo "  $f"
         cat "immich/$f" | ssh {{ pve }} "pct exec {{ immich_ct }} -- tee /opt/immich/$f > /dev/null"
     done
@@ -220,6 +253,8 @@ push-stirling:
     echo "Pushing Stirling PDF configs..."
     echo "  docker-compose.yml"
     cat stirling-pdf/docker-compose.yml | ssh {{ pve }} "pct exec {{ stirling_ct }} -- tee /opt/stirling-pdf/docker-compose.yml > /dev/null"
+    echo "  alloy-config.alloy"
+    cat stirling-pdf/alloy-config.alloy | ssh {{ pve }} "pct exec {{ stirling_ct }} -- tee /opt/stirling-pdf/alloy-config.alloy > /dev/null"
     echo "Done. Restart with: just restart-stirling"
 
 # Push AdGuard Home configs to the host
@@ -229,6 +264,8 @@ push-adguard:
     echo "Pushing AdGuard Home configs..."
     echo "  docker-compose.yml"
     cat adguard/docker-compose.yml | ssh {{ pve }} "pct exec {{ adguard_ct }} -- tee /opt/adguard/docker-compose.yml > /dev/null"
+    echo "  alloy-config.alloy"
+    cat adguard/alloy-config.alloy | ssh {{ pve }} "pct exec {{ adguard_ct }} -- tee /opt/adguard/alloy-config.alloy > /dev/null"
     echo "Done. Restart with: just restart-adguard"
 
 # Push SFTPGo configs to the host (currently not running)
@@ -272,6 +309,42 @@ push-leafwiki:
     ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- bash -c 'systemctl daemon-reload && systemctl restart leafwiki'"
     echo "Done."
 
+# Push monitoring stack + journal-upload config to CT 108, host, and native-systemd LXCs
+push-monitoring:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Pushing monitoring stack..."
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- mkdir -p /opt/monitoring/prometheus/rules /opt/monitoring/alertmanager /opt/monitoring/loki /opt/monitoring/blackbox /opt/monitoring/alloy /opt/monitoring/grafana/provisioning/datasources /opt/monitoring/grafana/provisioning/dashboards"
+    cat monitoring/docker-compose.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/docker-compose.yml > /dev/null"
+    cat monitoring/prometheus/prometheus.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/prometheus/prometheus.yml > /dev/null"
+    cat monitoring/prometheus/rules/alerts.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/prometheus/rules/alerts.yml > /dev/null"
+    cat monitoring/alertmanager/alertmanager.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/alertmanager/alertmanager.yml > /dev/null"
+    cat monitoring/loki/loki-config.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/loki/loki-config.yml > /dev/null"
+    cat monitoring/blackbox/blackbox.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/blackbox/blackbox.yml > /dev/null"
+    cat monitoring/alloy/central-relay.alloy | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/alloy/central-relay.alloy > /dev/null"
+    cat monitoring/grafana/provisioning/datasources/datasources.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/datasources/datasources.yml > /dev/null"
+    cat monitoring/grafana/provisioning/dashboards/dashboards.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/dashboards.yml > /dev/null"
+    if [ -f monitoring/.env ]; then
+        echo "  .env"
+        cat monitoring/.env | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/.env > /dev/null"
+    fi
+    echo "  journal-remote.conf (native, on CT 108)"
+    cat monitoring/journal-remote/journal-remote.conf | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /etc/systemd/journal-remote.conf > /dev/null"
+
+    echo "Pushing journal-upload.conf to host + native-systemd LXCs..."
+    echo "  host"
+    cat proxmox/journal-upload.conf | ssh {{ pve }} "tee /etc/systemd/journal-upload.conf > /dev/null"
+    for ct in {{ copyparty_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do
+        echo "  CT $ct"
+        cat monitoring/journal-upload.conf | ssh {{ pve }} "pct exec $ct -- tee /etc/systemd/journal-upload.conf > /dev/null"
+    done
+    echo "Done. Restart with: just restart-monitoring"
+    echo "First-time only: install systemd-journal-remote on the host + CT 108 + each native-systemd LXC, then 'systemctl enable --now systemd-journal-upload/-remote' as appropriate (see monitoring/journal-remote/journal-remote.conf for the CT 108 receiver override)."
+
+# Restart the monitoring stack on CT 108
+restart-monitoring:
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- bash -c 'cd /opt/monitoring && docker compose down && docker compose up -d'"
+
 # Restart Immich stack on the host
 restart-immich:
     ssh {{ pve }} "pct exec {{ immich_ct }} -- bash -c 'cd /opt/immich && docker compose down && docker compose up -d'"
@@ -298,7 +371,8 @@ logs target="pihole":
         adguard)   ssh {{ pve }} "pct exec {{ adguard_ct }} -- docker compose -f /opt/adguard/docker-compose.yml logs -f --tail 100" ;;
         backup)    ssh {{ pve }} "tail -f /var/log/borg-backup.log" ;;
         storage-check) ssh {{ pve }} "tail -f /var/log/storage-check.log" ;;
-        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, stirling, sftpgo, filebrowser, leafwiki, adguard, backup, storage-check)"; exit 1 ;;
+        monitoring) ssh {{ pve }} "pct exec {{ monitoring_ct }} -- docker compose -f /opt/monitoring/docker-compose.yml logs -f --tail 100" ;;
+        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, stirling, sftpgo, filebrowser, leafwiki, adguard, backup, storage-check, monitoring)"; exit 1 ;;
     esac
 
 # Show container status
