@@ -56,16 +56,21 @@ services:
     restart: always
 
   # Bridges Alertmanager's webhook_configs receiver to ntfy.sh, reusing the same
-  # NTFY_TOPIC convention as proxmox/check-storage.env. Image/version chosen at
-  # build time -- see README for the current pick and why.
+  # NTFY_TOPIC convention as proxmox/check-storage.env. Config format is scfg,
+  # not env vars -- the template is substituted with NTFY_TOPIC at container
+  # start so the secret never lands in a tracked file.
   alertmanager-ntfy:
     container_name: monitoring_alertmanager_ntfy
     image: xenrox/ntfy-alertmanager:latest
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        sed "s#__NTFY_TOPIC__#$$NTFY_TOPIC#" /etc/ntfy-alertmanager/config.template > /etc/ntfy-alertmanager/config
+        exec /ntfy-alertmanager
     env_file:
       - .env
-    environment:
-      NTFY_URL: https://ntfy.sh
-      NTFY_TOPIC: ${NTFY_TOPIC}
+    volumes:
+      - ./alertmanager-ntfy/config.scfg.template:/etc/ntfy-alertmanager/config.template:ro
     mem_limit: 50m
     restart: always
 
@@ -75,7 +80,9 @@ services:
     container_name: monitoring_pve_exporter
     image: prompve/prometheus-pve-exporter:latest
     environment:
-      PVE_USER: ${PVE_API_TOKEN_ID}
+      # PVE_USER is the bare user, not the full token ID -- that's
+      # PVE_TOKEN_NAME separately. Mixing them up returns a 401.
+      PVE_USER: ${PVE_API_USER}
       PVE_TOKEN_NAME: pve-exporter
       PVE_TOKEN_VALUE: ${PVE_API_TOKEN_SECRET}
       PVE_VERIFY_SSL: "false"

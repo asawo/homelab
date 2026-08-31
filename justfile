@@ -102,6 +102,7 @@ diff:
     check_diff "prometheus.yml" "monitoring/prometheus/prometheus.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/prometheus/prometheus.yml"
     check_diff "alerts.yml" "monitoring/prometheus/rules/alerts.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/prometheus/rules/alerts.yml"
     check_diff "alertmanager.yml" "monitoring/alertmanager/alertmanager.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alertmanager/alertmanager.yml"
+    check_diff "config.scfg.template" "monitoring/alertmanager-ntfy/config.scfg.template" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alertmanager-ntfy/config.scfg.template"
     check_diff "loki-config.yml" "monitoring/loki/loki-config.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/loki/loki-config.yml"
     check_diff "blackbox.yml" "monitoring/blackbox/blackbox.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/blackbox/blackbox.yml"
     check_diff "central-relay.alloy" "monitoring/alloy/central-relay.alloy" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alloy/central-relay.alloy"
@@ -175,6 +176,7 @@ pull:
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/prometheus/prometheus.yml" > monitoring/prometheus/prometheus.yml
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/prometheus/rules/alerts.yml" > monitoring/prometheus/rules/alerts.yml
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alertmanager/alertmanager.yml" > monitoring/alertmanager/alertmanager.yml
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alertmanager-ntfy/config.scfg.template" > monitoring/alertmanager-ntfy/config.scfg.template
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/loki/loki-config.yml" > monitoring/loki/loki-config.yml
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/blackbox/blackbox.yml" > monitoring/blackbox/blackbox.yml
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alloy/central-relay.alloy" > monitoring/alloy/central-relay.alloy
@@ -319,6 +321,7 @@ push-monitoring:
     cat monitoring/prometheus/prometheus.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/prometheus/prometheus.yml > /dev/null"
     cat monitoring/prometheus/rules/alerts.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/prometheus/rules/alerts.yml > /dev/null"
     cat monitoring/alertmanager/alertmanager.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/alertmanager/alertmanager.yml > /dev/null"
+    cat monitoring/alertmanager-ntfy/config.scfg.template | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/alertmanager-ntfy/config.scfg.template > /dev/null"
     cat monitoring/loki/loki-config.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/loki/loki-config.yml > /dev/null"
     cat monitoring/blackbox/blackbox.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/blackbox/blackbox.yml > /dev/null"
     cat monitoring/alloy/central-relay.alloy | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/alloy/central-relay.alloy > /dev/null"

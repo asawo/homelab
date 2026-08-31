@@ -11,20 +11,19 @@ rule_files:
   - /etc/prometheus/rules/alerts.yml
 
 scrape_configs:
-  # Agentless host + per-CT resource metrics via the Proxmox API.
-  # In scope only: host + Immich(101)/Copyparty(102)/Stirling PDF(103)/
-  # FileBrowser(105)/LeafWiki(106)/AdGuard(107). Pi-hole(100) and SFTPGo(104)
-  # are deliberately excluded (both being deprecated).
+  # Agentless host + per-CT resource metrics via the Proxmox API. One target
+  # (the cluster/host itself) is correct here, NOT one per container --
+  # pve-exporter returns metrics for every node/CT/VM on the cluster in a
+  # single scrape (confirmed live: `curl pve-exporter:9221/pve?target=pve.lan`
+  # returns pve_* series for all 8 LXCs, filtered to the in-scope 6 --
+  # Immich/101, Copyparty/102, Stirling PDF/103, FileBrowser/105, LeafWiki/106,
+  # AdGuard/107 -- at the Grafana/alerting layer, not here. Pi-hole/100 and
+  # SFTPGo/104 are out of scope but still show up in the raw series since the
+  # exporter can't filter per-target).
   - job_name: pve
     static_configs:
       - targets:
           - pve.lan
-          - 192.168.11.201 # immich (101)
-          - 192.168.11.202 # copyparty (102)
-          - 192.168.11.203 # stirling-pdf (103)
-          - 192.168.11.205 # filebrowser (105)
-          - 192.168.11.206 # leafwiki (106)
-          - 192.168.11.207 # adguard (107)
     metrics_path: /pve
     params:
       module: [default]
@@ -73,7 +72,7 @@ scrape_configs:
           - http://pdf.home:8080 # stirling-pdf
           - http://nas.home:8080 # filebrowser
           - http://wiki.home:8080 # leafwiki
-          - http://adguard.home:3000 # adguard
+          - http://adguard.home:80 # adguard -- README says 3000, but the live container actually listens on 80; flag the doc drift separately
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
