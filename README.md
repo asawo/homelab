@@ -7,7 +7,8 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 | Host | DNS | Role |
 |------|-----|------|
 | pve | pve.lan | Proxmox hypervisor |
-| pihole | pihole.lan | DNS + ad blocking (LXC 100) |
+| pihole | pihole.lan | DNS + ad blocking (LXC 100) — being migrated to AdGuard |
+| adguard | adguard.home | DNS + ad blocking, replacing Pi-hole (LXC 107) |
 | immich | photos.home | Photo management (LXC 101) |
 | copyparty | files.home | File server for DAS (LXC 102) |
 | stirling-pdf | pdf.home | PDF tools (LXC 103) |
@@ -56,6 +57,11 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 - Web UI on port 8080
 - `.env` is gitignored (contains JWT secret and admin password) — see `.env.example` for template
 
+### AdGuard Home (CT 107)
+- Docker Compose, DNS on port 53 (tcp+udp) and web UI on port 3000
+- Replacing Pi-hole as the tailnet's DNS resolver (Tailscale Global nameserver) — see migration notes below
+- `adguard/conf/AdGuardHome.yaml` is gitignored (contains admin password hash) — recreated via the setup wizard on first run
+
 ## Usage
 
 Requires [just](https://github.com/casey/just).
@@ -68,15 +74,17 @@ just push-pihole       # Push Pi-hole config and restart FTL
 just push-immich       # Push Immich configs to the host
 just push-copyparty    # Push Copyparty configs and restart service
 just push-stirling     # Push Stirling PDF docker-compose
+just push-adguard      # Push AdGuard Home docker-compose
 just push-filebrowser  # Push FileBrowser configs and restart service
 just push-leafwiki     # Push LeafWiki configs and restart service
-just ssh [target]      # SSH into pve, immich, pihole, copyparty, stirling, sftpgo, filebrowser, or leafwiki
-just logs [target]     # Tail logs (immich, pihole, copyparty, stirling, sftpgo, filebrowser, leafwiki, backup, storage-check)
+just ssh [target]      # SSH into pve, immich, pihole, copyparty, stirling, sftpgo, filebrowser, leafwiki, or adguard
+just logs [target]     # Tail logs (immich, pihole, copyparty, stirling, sftpgo, filebrowser, leafwiki, adguard, backup, storage-check)
 just status            # Show container status
 just check-storage     # Manually run the storage health check
 just update-tailscale  # Upgrade Tailscale on all LXCs that have it installed
 just restart-immich    # Restart the Immich docker stack
 just restart-stirling  # Restart the Stirling PDF container
+just restart-adguard   # Restart the AdGuard Home container
 ```
 
 ## Sensitive files
