@@ -13,13 +13,36 @@
 // label (shared name with the native-Alloy journal pipeline, so the Logs
 // Overview dashboard's Source variable covers both) is a static tag, not a
 // discovered value -- this Alloy instance only ever sees this one LXC.
+//
+// Use the purpose-built stage.decolorize, not a manual stage.replace regex --
+// verified empirically that a manual stage.replace here does NOT mutate the
+// line actually forwarded to Loki (raw ESC bytes still landed in storage,
+// confirmed via `repr()` on the stored content), even though its `source`
+// defaults to the log line per the docs. stage.decolorize is documented to
+// mutate the line directly and was confirmed live to work.
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
 }
 
+// Drop cadvisor's own glog-style stdout and this Alloy instance's own
+// key=value control-plane logs -- same noise-filtering rationale as
+// adguard/alloy-config.alloy (cadvisor's data already reaches Prometheus as
+// metrics). postgres/redis/machine-learning are left in even though they
+// also don't match the NestJS regex below (bucketing as "unknown") -- unlike
+// cadvisor/alloy, they carry real diagnostic value.
+discovery.relabel "filtered" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/immich_(cadvisor|alloy)"
+    action        = "drop"
+  }
+}
+
 loki.source.docker "default" {
   host       = "unix:///var/run/docker.sock"
-  targets    = discovery.docker.containers.targets
+  targets    = discovery.relabel.filtered.output
   labels     = { host = "immich" }
   forward_to = [loki.process.default.receiver]
 }
@@ -27,10 +50,7 @@ loki.source.docker "default" {
 loki.process "default" {
   forward_to = [loki.write.default.receiver]
 
-  stage.replace {
-    expression = "\\x1b\\[[0-9;]*m"
-    replace    = ""
-  }
+  stage.decolorize {}
 
   stage.regex {
     expression = "\\[Nest\\]\\s+\\S+\\s+-\\s+\\S.*?\\s(?P<extracted_level>LOG|WARN|ERROR|DEBUG|VERBOSE)\\s+\\["
