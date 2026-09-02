@@ -110,6 +110,7 @@ diff:
     check_diff "adguard.json" "monitoring/grafana/provisioning/dashboards/adguard.json" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/adguard.json"
     check_diff "fleet-overview.json" "monitoring/grafana/provisioning/dashboards/fleet-overview.json" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/fleet-overview.json"
     check_diff "uptime-status.json" "monitoring/grafana/provisioning/dashboards/uptime-status.json" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/uptime-status.json"
+    check_diff "logs-overview.json" "monitoring/grafana/provisioning/dashboards/logs-overview.json" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/logs-overview.json"
     if [ -f monitoring/.env ]; then
         check_diff ".env" monitoring/.env "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/.env"
     fi
@@ -193,6 +194,7 @@ pull:
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/adguard.json" > monitoring/grafana/provisioning/dashboards/adguard.json
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/fleet-overview.json" > monitoring/grafana/provisioning/dashboards/fleet-overview.json
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/uptime-status.json" > monitoring/grafana/provisioning/dashboards/uptime-status.json
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/logs-overview.json" > monitoring/grafana/provisioning/dashboards/logs-overview.json
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/.env" > monitoring/.env 2>/dev/null || true
     ssh {{ pve }} "pct config {{ monitoring_ct }}" > proxmox/ct-108-monitoring.conf
 
@@ -352,6 +354,7 @@ push-monitoring:
     cat monitoring/grafana/provisioning/dashboards/adguard.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/adguard.json > /dev/null"
     cat monitoring/grafana/provisioning/dashboards/fleet-overview.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/fleet-overview.json > /dev/null"
     cat monitoring/grafana/provisioning/dashboards/uptime-status.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/uptime-status.json > /dev/null"
+    cat monitoring/grafana/provisioning/dashboards/logs-overview.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/logs-overview.json > /dev/null"
 
     echo "Pushing native Alloy config to Copyparty, FileBrowser, LeafWiki..."
     for ct in {{ copyparty_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do

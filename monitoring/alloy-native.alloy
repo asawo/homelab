@@ -6,6 +6,12 @@
 // through under a single job=loki.source.journal.local label otherwise,
 // making the 3 sources indistinguishable), so relabel_rules explicitly
 // promotes _HOSTNAME/_SYSTEMD_UNIT to real "host"/"unit" labels below.
+// It also maps journald's own PRIORITY field (syslog severity, present on
+// every entry regardless of what the app itself prints) to a baseline
+// "level" -- without this, only apps that print their own recognizable level
+// text (e.g. LeafWiki's structured JSON) get one; plain-text sources
+// (Copyparty, FileBrowser) showed "unknown" otherwise. The loki.process block
+// below lets a real structured level (when present) override this fallback.
 //
 // Replaces an earlier design (systemd-journal-remote/-upload fan-in) that
 // hit an unresolved upstream systemd-journal-remote/libmicrohttpd chunked-
@@ -26,11 +32,66 @@ loki.relabel "journal" {
     source_labels = ["__journal__systemd_unit"]
     target_label  = "unit"
   }
+
+  rule {
+    source_labels = ["__journal_priority"]
+    target_label  = "level"
+    regex         = "0|1|2"
+    replacement   = "critical"
+  }
+  rule {
+    source_labels = ["__journal_priority"]
+    target_label  = "level"
+    regex         = "3"
+    replacement   = "error"
+  }
+  rule {
+    source_labels = ["__journal_priority"]
+    target_label  = "level"
+    regex         = "4"
+    replacement   = "warning"
+  }
+  rule {
+    source_labels = ["__journal_priority"]
+    target_label  = "level"
+    regex         = "5|6"
+    replacement   = "info"
+  }
+  rule {
+    source_labels = ["__journal_priority"]
+    target_label  = "level"
+    regex         = "7"
+    replacement   = "debug"
+  }
 }
 
 loki.source.journal "local" {
-  forward_to    = [loki.write.default.receiver]
+  forward_to    = [loki.process.journal.receiver]
   relabel_rules = loki.relabel.journal.rules
+}
+
+// Apps that emit structured JSON with their own level (e.g. LeafWiki) get
+// that preferred over the coarse journald-priority fallback above --
+// stage.json is a no-op on non-JSON lines, and stage.labels only overwrites
+// "level" when a real one was actually extracted, so Copyparty/FileBrowser
+// keep their priority-derived level untouched.
+loki.process "journal" {
+  forward_to = [loki.write.default.receiver]
+
+  stage.json {
+    expressions = { extracted_level = "level" }
+  }
+
+  // Normalize case so e.g. LeafWiki's own "INFO" and the priority-derived
+  // fallback's "info" collapse to one value instead of fragmenting queries.
+  stage.template {
+    source   = "extracted_level"
+    template = "{{ ToLower .Value }}"
+  }
+
+  stage.labels {
+    values = { level = "extracted_level" }
+  }
 }
 
 loki.write "default" {
