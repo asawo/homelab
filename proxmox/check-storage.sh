@@ -61,7 +61,7 @@ done
 
 for ct in "${!CT_PATHS[@]}"; do
   path="${CT_PATHS[$ct]}"
-  if ! pct exec "$ct" -- stat "$path" >/dev/null 2>&1; then
+  if ! pct exec "$ct" -- ls "$path" >/dev/null 2>&1; then
     log "CT $ct: read check failed on $path"
     broken=1
     if [ "$ESCALATED" -eq 0 ]; then
@@ -69,7 +69,7 @@ for ct in "${!CT_PATHS[@]}"; do
       pct reboot "$ct"
       attempted_fix=1
       sleep 15
-      if pct exec "$ct" -- stat "$path" >/dev/null 2>&1; then
+      if pct exec "$ct" -- ls "$path" >/dev/null 2>&1; then
         log "CT $ct: recovered after reboot"
       else
         log "CT $ct: still failing after reboot"
