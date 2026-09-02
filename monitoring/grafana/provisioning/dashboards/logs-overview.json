@@ -20,7 +20,7 @@
         "label": "Source",
         "type": "query",
         "datasource": { "type": "loki", "uid": "loki" },
-        "query": "label_values({job=\"loki.source.journal.local\"}, host)",
+        "query": "label_values(host)",
         "refresh": 2,
         "multi": true,
         "includeAll": true,
@@ -32,7 +32,7 @@
         "label": "Level",
         "type": "query",
         "datasource": { "type": "loki", "uid": "loki" },
-        "query": "label_values({job=\"loki.source.journal.local\"}, level)",
+        "query": "label_values(level)",
         "refresh": 2,
         "multi": true,
         "includeAll": true,
@@ -83,7 +83,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (host) (count_over_time({job=\"loki.source.journal.local\", host=~\"$source\", level=~\"$level\"}[$__interval]))",
+          "expr": "sum by (host) (count_over_time({host=~\"$source\", level=~\"$level\"}[$__interval]))",
           "legendFormat": "{{host}}",
           "refId": "A",
           "datasource": {
@@ -155,7 +155,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (level) (count_over_time({job=\"loki.source.journal.local\", host=~\"$source\", level=~\"$level\"}[$__interval]))",
+          "expr": "sum by (level) (count_over_time({host=~\"$source\", level=~\"$level\"}[$__interval]))",
           "legendFormat": "{{level}}",
           "refId": "A",
           "datasource": {
@@ -168,7 +168,7 @@
     {
       "id": 2,
       "type": "logs",
-      "title": "Live logs (Copyparty, FileBrowser, LeafWiki)",
+      "title": "Live logs",
       "gridPos": {
         "x": 0,
         "y": 16,
@@ -191,7 +191,7 @@
       },
       "targets": [
         {
-          "expr": "{job=\"loki.source.journal.local\", host=~\"$source\", level=~\"$level\"}",
+          "expr": "{host=~\"$source\", level=~\"$level\"}",
           "refId": "A",
           "datasource": {
             "type": "loki",
