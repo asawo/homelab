@@ -72,17 +72,17 @@ loki.source.journal "local" {
 
 // Apps that emit structured JSON with their own level (e.g. LeafWiki) get
 // that preferred over the coarse journald-priority fallback above. Below
-// that, a bracketed-level regex (e.g. FileBrowser's internal scanner logs:
-// "[ERROR] Failed to read root directory...") catches plain-text lines that
-// do carry a real severity word journald's own PRIORITY can't see -- e.g.
-// FileBrowser writes everything to stdout, which journald defaults to
-// "info" priority regardless of what the text says, so its bracketed
-// [ERROR]/[WARN] lines were otherwise mislabeled "info". Copyparty's access
-// log ("LOG: GET / @*") and FileBrowser's own Gin-style access log don't use
-// this bracket convention at all, so they still fall through to the
-// journald-priority fallback untouched -- stage.json and the regex are both
-// no-ops on lines that don't match, and stage.labels only overwrites "level"
-// when a real one was actually extracted.
+// that, two plain-text fallbacks catch severity signals journald's own
+// PRIORITY can't see (everything goes to stdout, which journald defaults to
+// "info" regardless of content): a bracketed-level regex (e.g. FileBrowser's
+// internal scanner logs: "[ERROR] Failed to read root directory...") and an
+// HTTP-status-code regex for access-log lines that carry a status but no
+// level word at all (e.g. FileBrowser's Gin-style "GET | 500 | ..." --
+// 5xx/4xx map to error/warning, everything else stays "info"). Copyparty's
+// access log ("LOG: GET / @*") uses neither convention, so it still falls
+// through to the journald-priority fallback untouched -- every stage below
+// is a no-op on a line that doesn't match, and stage.labels only overwrites
+// "level" when a real one was actually extracted.
 loki.process "journal" {
   forward_to = [loki.write.default.receiver]
 
@@ -94,15 +94,19 @@ loki.process "journal" {
     expression = "\\[(?P<bracket_level>ERROR|WARN|WARNING|INFO|DEBUG|CRITICAL|FATAL)\\]"
   }
 
+  stage.regex {
+    expression = "\\|\\s*(?P<status_code>[1-5]\\d{2})\\s*\\|"
+  }
+
   // Normalize case (and WARN/FATAL naming) so e.g. LeafWiki's own "INFO" and
   // the priority-derived fallback's "info" collapse to one value instead of
-  // fragmenting queries. JSON-extracted level wins if present; the bracket
-  // regex is the fallback when the line isn't JSON but does carry a
-  // recognizable level word; otherwise this renders empty and the
+  // fragmenting queries. Precedence: JSON-extracted level, then the bracket
+  // word, then the HTTP status code (string comparison is safe here since
+  // status_code is always exactly 3 digits), then this renders empty and the
   // journald-priority label above is left untouched.
   stage.template {
     source   = "extracted_level"
-    template = "{{ if .Value }}{{ ToLower .Value }}{{ else if .bracket_level }}{{ if eq .bracket_level \"WARN\" }}warning{{ else if eq .bracket_level \"FATAL\" }}critical{{ else }}{{ ToLower .bracket_level }}{{ end }}{{ else }}{{ end }}"
+    template = "{{ if .Value }}{{ ToLower .Value }}{{ else if .bracket_level }}{{ if eq .bracket_level \"WARN\" }}warning{{ else if eq .bracket_level \"FATAL\" }}critical{{ else }}{{ ToLower .bracket_level }}{{ end }}{{ else if .status_code }}{{ if ge .status_code \"500\" }}error{{ else if ge .status_code \"400\" }}warning{{ else }}info{{ end }}{{ else }}{{ end }}"
   }
 
   stage.labels {
