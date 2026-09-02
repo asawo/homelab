@@ -12,10 +12,13 @@ services:
 
   # Per-container resource metrics. adguardhome uses network_mode: host, but
   # these sidecars deliberately don't -- they don't need it, and it'd be one
-  # more thing sharing the host's DNS ports for no reason.
+  # more thing sharing the host's DNS ports for no reason. v0.60.5 (registry
+  # moved to ghcr.io as of v0.53.0) -- see immich/docker-compose.yml's
+  # cadvisor service for why v0.49.1 silently reported zero per-container
+  # metrics under Docker 29's containerd-snapshotter storage.
   cadvisor:
     container_name: adguard_cadvisor
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    image: ghcr.io/google/cadvisor:v0.60.5
     ports:
       - '9280:8080'
     volumes:
@@ -24,6 +27,8 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
       - /dev/disk:/dev/disk:ro
+      # See immich/docker-compose.yml's cadvisor service for why.
+      - /etc/machine-id:/etc/machine-id:ro
     # No /dev/kmsg device mapping -- it doesn't exist inside an unprivileged LXC.
     mem_limit: 200m
     restart: always

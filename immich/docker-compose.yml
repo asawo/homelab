@@ -79,10 +79,16 @@ services:
       disable: false
 
   # Per-container resource metrics, scraped remotely by the central Prometheus
-  # in CT 108. Port 9280 kept uniform across all 3 Docker-based LXCs.
+  # in CT 108. Port 9280 kept uniform across all 3 Docker-based LXCs. v0.60.5
+  # (registry moved to ghcr.io as of v0.53.0) -- v0.49.1 predates Docker 29's
+  # switch to containerd-snapshotter storage, which broke ALL per-container
+  # metrics here (not just log noise): cAdvisor couldn't find the classic
+  # overlay2 layerdb path Docker 29 no longer writes, and treated that as
+  # fatal for the whole container rather than just skipping disk-usage
+  # metrics. Fixed upstream in google/cadvisor#3709 (in v0.54.0+).
   cadvisor:
     container_name: immich_cadvisor
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    image: ghcr.io/google/cadvisor:v0.60.5
     ports:
       - '9280:8080'
     volumes:
@@ -91,6 +97,11 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
       - /dev/disk:/dev/disk:ro
+      # cAdvisor reads /etc/machine-id directly (not via /rootfs), and its own
+      # container doesn't have one -- bind-mounting the host's makes the
+      # periodic "Failed to get system UUID" error go away for good, rather
+      # than relying on however cAdvisor happens to resolve /rootfs internally.
+      - /etc/machine-id:/etc/machine-id:ro
     # No /dev/kmsg device mapping -- it doesn't exist inside an unprivileged LXC.
     mem_limit: 200m
     restart: always
