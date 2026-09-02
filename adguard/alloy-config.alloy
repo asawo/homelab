@@ -7,9 +7,26 @@ discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
 }
 
+// Drop cadvisor's own glog-style stdout ("I0902 08:18:55...") and this Alloy
+// instance's own key=value control-plane logs before they reach the level
+// regex below -- neither is AdGuard's own log format, so both were silently
+// filling the "unknown" bucket (confirmed: 100% of recent `level="unknown"`
+// entries traced back to these two, zero genuine unparsed AdGuard lines).
+// cadvisor's data already reaches Prometheus as metrics; shipping its stdout
+// as logs here added noise, not signal.
+discovery.relabel "filtered" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/adguard_(cadvisor|alloy)"
+    action        = "drop"
+  }
+}
+
 loki.source.docker "default" {
   host       = "unix:///var/run/docker.sock"
-  targets    = discovery.docker.containers.targets
+  targets    = discovery.relabel.filtered.output
   labels     = { host = "adguard" }
   forward_to = [loki.process.default.receiver]
 }
