@@ -1,0 +1,16 @@
+[Unit]
+Description=Grafana Alloy (native, journal-only log shipper)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=alloy
+WorkingDirectory=/opt/alloy
+ExecStart=/usr/local/bin/alloy run --server.http.listen-addr=127.0.0.1:12345 /opt/alloy/config.alloy
+Restart=on-failure
+RestartSec=5
+MemoryMax=200M
+
+[Install]
+WantedBy=multi-user.target

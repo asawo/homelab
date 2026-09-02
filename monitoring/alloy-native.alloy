@@ -1,0 +1,40 @@
+// Shared config for the native (non-Docker) Alloy install on Copyparty,
+// FileBrowser, and LeafWiki -- see monitoring/setup-alloy-native.sh and
+// monitoring/alloy-native.service. Reads each host's own local journal and
+// ships it straight to Loki; identical across all three -- loki.source.journal
+// doesn't promote journal fields to labels by default (everything comes
+// through under a single job=loki.source.journal.local label otherwise,
+// making the 3 sources indistinguishable), so relabel_rules explicitly
+// promotes _HOSTNAME/_SYSTEMD_UNIT to real "host"/"unit" labels below.
+//
+// Replaces an earlier design (systemd-journal-remote/-upload fan-in) that
+// hit an unresolved upstream systemd-journal-remote/libmicrohttpd chunked-
+// transfer-encoding bug -- see git history for the failed attempt. The host
+// itself is deliberately NOT in scope for this: unlike these 3 LXCs, it's
+// the bare Proxmox hypervisor, and the whole point of the original
+// systemd-journal-upload design was to avoid installing anything extra
+// directly on it.
+loki.relabel "journal" {
+  forward_to = []
+
+  rule {
+    source_labels = ["__journal__hostname"]
+    target_label  = "host"
+  }
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+}
+
+loki.source.journal "local" {
+  forward_to    = [loki.write.default.receiver]
+  relabel_rules = loki.relabel.journal.rules
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://monitoring.home:3100/loki/api/v1/push"
+  }
+}

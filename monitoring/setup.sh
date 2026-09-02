@@ -2,12 +2,11 @@
 set -euo pipefail
 
 # Run inside CT 108 after container creation
-# Installs Docker + Tailscale + systemd-journal-remote (the native journal
-# receiver, used by monitoring/journal-remote/journal-remote.conf), then
-# creates the directories `just push-monitoring` pushes config into.
+# Installs Docker + Tailscale, then creates the directories `just
+# push-monitoring` pushes config into.
 # Run `tailscale up` manually after this.
 
-apt-get update && apt-get install -y ca-certificates curl gnupg systemd-journal-remote
+apt-get update && apt-get install -y ca-certificates curl gnupg
 
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
@@ -19,8 +18,7 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin do
 
 curl -fsSL https://tailscale.com/install.sh | sh
 
-mkdir -p /opt/monitoring /var/log/journal/remote
+mkdir -p /opt/monitoring
 
-echo "Docker + Tailscale + systemd-journal-remote installed."
-echo "Next: 'tailscale up' to join the tailnet, then 'just push-monitoring',"
-echo "then override systemd-journal-remote.service per monitoring/journal-remote/journal-remote.conf's comments."
+echo "Docker + Tailscale installed."
+echo "Next: 'tailscale up' to join the tailnet, then 'just push-monitoring'."

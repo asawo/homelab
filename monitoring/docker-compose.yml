@@ -115,20 +115,6 @@ services:
     mem_limit: 50m
     restart: always
 
-  # Central log relay: reads the merged journal directory written by the native
-  # systemd-journal-remote receiver (host + Copyparty + FileBrowser + LeafWiki)
-  # and ships it into Loki. This is the ONLY journal-side Alloy instance --
-  # see README for why 4 Alloy instances instead of 7.
-  alloy:
-    container_name: monitoring_alloy
-    image: grafana/alloy:latest
-    volumes:
-      - ./alloy/central-relay.alloy:/etc/alloy/config.alloy:ro
-      - /var/log/journal/remote:/var/log/journal/remote:ro
-    command: ["run", "--server.http.listen-addr=127.0.0.1:12345", "/etc/alloy/config.alloy"]
-    mem_limit: 400m
-    restart: always
-
 volumes:
   prometheus-data:
   loki-data:

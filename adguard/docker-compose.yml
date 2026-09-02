@@ -28,8 +28,10 @@ services:
     mem_limit: 200m
     restart: always
 
-  # Ships this LXC's Docker container logs to the central Loki. Journald logs
-  # go via systemd-journal-upload instead -- see monitoring/journal-upload.conf.
+  # Ships this LXC's Docker container logs to the central Loki. This LXC's own
+  # journald (as opposed to its Docker containers) isn't currently shipped
+  # anywhere -- out of scope for now, see monitoring/alloy-native.alloy's
+  # comment for why the journald-shipping design changed.
   # AdGuard's own DNS query metrics come from a separate central exporter
   # (monitoring/docker-compose.yml's adguard-exporter), not from here.
   alloy:

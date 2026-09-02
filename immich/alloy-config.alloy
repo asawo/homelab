@@ -1,7 +1,8 @@
-// Docker-log-source only -- this LXC's journald goes via systemd-journal-upload
-// instead (see monitoring/journal-upload.conf), keeping this instance's
-// footprint to just the one thing that can't be centralized: local Docker
-// socket access.
+// Docker-log-source only -- keeping this instance's footprint to just the one
+// thing that can't be centralized: local Docker socket access. This LXC's own
+// journald (as opposed to its Docker containers) isn't currently shipped
+// anywhere -- see monitoring/alloy-native.alloy's comment for why the
+// journald-shipping design changed.
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
 }

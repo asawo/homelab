@@ -105,8 +105,6 @@ diff:
     check_diff "config.scfg.template" "monitoring/alertmanager-ntfy/config.scfg.template" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alertmanager-ntfy/config.scfg.template"
     check_diff "loki-config.yml" "monitoring/loki/loki-config.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/loki/loki-config.yml"
     check_diff "blackbox.yml" "monitoring/blackbox/blackbox.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/blackbox/blackbox.yml"
-    check_diff "central-relay.alloy" "monitoring/alloy/central-relay.alloy" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alloy/central-relay.alloy"
-    check_diff "journal-remote.conf" "monitoring/journal-remote/journal-remote.conf" "pct exec {{ monitoring_ct }} -- cat /etc/systemd/journal-remote.conf"
     check_diff "datasources.yml" "monitoring/grafana/provisioning/datasources/datasources.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/datasources/datasources.yml"
     check_diff "dashboards.yml" "monitoring/grafana/provisioning/dashboards/dashboards.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/dashboards.yml"
     check_diff "adguard.json" "monitoring/grafana/provisioning/dashboards/adguard.json" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/adguard.json"
@@ -115,6 +113,12 @@ diff:
     if [ -f monitoring/.env ]; then
         check_diff ".env" monitoring/.env "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/.env"
     fi
+
+    echo "Native Alloy (Copyparty, FileBrowser, LeafWiki)"
+    for ct in {{ copyparty_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do
+        check_diff "CT $ct config.alloy" "monitoring/alloy-native.alloy" "pct exec $ct -- cat /opt/alloy/config.alloy"
+        check_diff "CT $ct alloy.service" "monitoring/alloy-native.service" "pct exec $ct -- cat /etc/systemd/system/alloy.service"
+    done
 
     if [ "$changed" -eq 0 ]; then
         echo ""
@@ -184,8 +188,6 @@ pull:
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alertmanager-ntfy/config.scfg.template" > monitoring/alertmanager-ntfy/config.scfg.template
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/loki/loki-config.yml" > monitoring/loki/loki-config.yml
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/blackbox/blackbox.yml" > monitoring/blackbox/blackbox.yml
-    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/alloy/central-relay.alloy" > monitoring/alloy/central-relay.alloy
-    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /etc/systemd/journal-remote.conf" > monitoring/journal-remote/journal-remote.conf 2>/dev/null || true
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/datasources/datasources.yml" > monitoring/grafana/provisioning/datasources/datasources.yml
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/dashboards.yml" > monitoring/grafana/provisioning/dashboards/dashboards.yml
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/adguard.json" > monitoring/grafana/provisioning/dashboards/adguard.json
@@ -193,7 +195,10 @@ pull:
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/uptime-status.json" > monitoring/grafana/provisioning/dashboards/uptime-status.json
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/.env" > monitoring/.env 2>/dev/null || true
     ssh {{ pve }} "pct config {{ monitoring_ct }}" > proxmox/ct-108-monitoring.conf
-    ssh {{ pve }} "cat /etc/systemd/journal-upload.conf" > proxmox/journal-upload.conf 2>/dev/null || true
+
+    echo "Pulling native Alloy configs..."
+    ssh {{ pve }} "pct exec {{ copyparty_ct }} -- cat /opt/alloy/config.alloy" > monitoring/alloy-native.alloy
+    ssh {{ pve }} "pct exec {{ copyparty_ct }} -- cat /etc/systemd/system/alloy.service" > monitoring/alloy-native.service
 
     echo "Done. Run 'git diff' to see what changed."
 
@@ -321,7 +326,7 @@ push-leafwiki:
     ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- bash -c 'systemctl daemon-reload && systemctl restart leafwiki'"
     echo "Done."
 
-# Push monitoring stack + journal-upload config to CT 108, host, and native-systemd LXCs
+# Push monitoring stack to CT 108 + native Alloy config to Copyparty/FileBrowser/LeafWiki
 push-monitoring:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -334,15 +339,12 @@ push-monitoring:
     cat monitoring/alertmanager-ntfy/config.scfg.template | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/alertmanager-ntfy/config.scfg.template > /dev/null"
     cat monitoring/loki/loki-config.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/loki/loki-config.yml > /dev/null"
     cat monitoring/blackbox/blackbox.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/blackbox/blackbox.yml > /dev/null"
-    cat monitoring/alloy/central-relay.alloy | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/alloy/central-relay.alloy > /dev/null"
     cat monitoring/grafana/provisioning/datasources/datasources.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/datasources/datasources.yml > /dev/null"
     cat monitoring/grafana/provisioning/dashboards/dashboards.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/dashboards.yml > /dev/null"
     if [ -f monitoring/.env ]; then
         echo "  .env"
         cat monitoring/.env | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/.env > /dev/null"
     fi
-    echo "  journal-remote.conf (native, on CT 108)"
-    cat monitoring/journal-remote/journal-remote.conf | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /etc/systemd/journal-remote.conf > /dev/null"
     echo "  grafana provisioning"
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- mkdir -p /opt/monitoring/grafana/provisioning/datasources /opt/monitoring/grafana/provisioning/dashboards"
     cat monitoring/grafana/provisioning/datasources/datasources.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/datasources/datasources.yml > /dev/null"
@@ -351,15 +353,17 @@ push-monitoring:
     cat monitoring/grafana/provisioning/dashboards/fleet-overview.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/fleet-overview.json > /dev/null"
     cat monitoring/grafana/provisioning/dashboards/uptime-status.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/uptime-status.json > /dev/null"
 
-    echo "Pushing journal-upload.conf to host + native-systemd LXCs..."
-    echo "  host"
-    cat proxmox/journal-upload.conf | ssh {{ pve }} "tee /etc/systemd/journal-upload.conf > /dev/null"
+    echo "Pushing native Alloy config to Copyparty, FileBrowser, LeafWiki..."
     for ct in {{ copyparty_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do
         echo "  CT $ct"
-        cat monitoring/journal-upload.conf | ssh {{ pve }} "pct exec $ct -- tee /etc/systemd/journal-upload.conf > /dev/null"
+        ssh {{ pve }} "pct exec $ct -- mkdir -p /opt/alloy"
+        cat monitoring/alloy-native.alloy | ssh {{ pve }} "pct exec $ct -- tee /opt/alloy/config.alloy > /dev/null"
+        cat monitoring/alloy-native.service | ssh {{ pve }} "pct exec $ct -- tee /etc/systemd/system/alloy.service > /dev/null"
+        ssh {{ pve }} "pct exec $ct -- systemctl daemon-reload"
     done
-    echo "Done. Restart with: just restart-monitoring"
-    echo "First-time only: install systemd-journal-remote on the host + CT 108 + each native-systemd LXC, then 'systemctl enable --now systemd-journal-upload/-remote' as appropriate (see monitoring/journal-remote/journal-remote.conf for the CT 108 receiver override)."
+    echo "Done. Restart monitoring stack with: just restart-monitoring"
+    echo "Restart native Alloy after a config change with: pct exec <ct> -- systemctl restart alloy"
+    echo "First-time only on each of Copyparty/FileBrowser/LeafWiki: run monitoring/setup-alloy-native.sh, then 'systemctl enable --now alloy'."
 
 # Restart the monitoring stack on CT 108
 restart-monitoring:

@@ -25,7 +25,7 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 - Nightly borg backup from `/mnt/storage` to `/mnt/backup` at 3am
 - Storage health check every 5 minutes (`proxmox/check-storage.sh`): detects the DAS mounts or a container's bind mount going stale (e.g. after the enclosure loses power), auto-fixes by remounting and/or rebooting the affected container, and alerts via [ntfy.sh](https://ntfy.sh) after 3 failed attempts instead of retrying forever
   - Reads `NTFY_TOPIC` from `/usr/local/etc/check-storage.env` on the host — `check-storage.env` is gitignored, see `check-storage.env.example` for the template
-  - Its cron entry also pipes output through `systemd-cat -t check-storage`, so its log rides along on the same journal-upload pipe as everything else in `monitoring/` — its own ntfy alerting and auto-remediation are unchanged
+  - Its own ntfy alerting and auto-remediation are unchanged and independent of `monitoring/`
 
 ### Pi-hole (CT 100)
 - Pi-hole v6 with Cloudflare DNS upstream
@@ -42,7 +42,7 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 - Serves `/mnt/storage/files` on port 3923 with password auth, Tailscale enabled
 - `.env` is gitignored (contains credentials) — see `.env.example` for template
 - Overlaps with SFTPGo and FileBrowser Quantum, but kept for the upload performance
-- Journald forwarded to the central Loki via `systemd-journal-upload` (no app-level metrics support)
+- Journald forwarded to the central Loki via a native Grafana Alloy install (standalone binary + systemd unit, not Docker — see Monitoring section) (no app-level metrics support)
 
 ### Stirling PDF (CT 103)
 - Docker Compose running Stirling PDF for PDF manipulation tools
@@ -57,13 +57,13 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 ### FileBrowser Quantum (CT 105)
 - Web-based file browser for the DAS
 - Serves `/mnt/storage/files` on port 8080
-- Journald forwarded to the central Loki via `systemd-journal-upload` (no app-level metrics support)
+- Journald forwarded to the central Loki via a native Grafana Alloy install (standalone binary + systemd unit, not Docker — see Monitoring section) (no app-level metrics support)
 
 ### LeafWiki (CT 106)
 - Lightweight self-hosted wiki with Markdown stored on disk
 - Web UI on port 8080
 - `.env` is gitignored (contains JWT secret and admin password) — see `.env.example` for template
-- Journald forwarded to the central Loki via `systemd-journal-upload` (no app-level metrics support)
+- Journald forwarded to the central Loki via a native Grafana Alloy install (standalone binary + systemd unit, not Docker — see Monitoring section) (no app-level metrics support)
 
 ### AdGuard Home (CT 107)
 - Docker Compose, DNS on port 53 (tcp+udp) and web UI on port 3000
@@ -72,13 +72,15 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 - cAdvisor + Alloy sidecars added for observability; DNS query/blocked/latency stats scraped by a dedicated exporter running centrally in `monitoring/` (AdGuard has no built-in Prometheus endpoint)
 
 ### Monitoring (CT 108)
-- Docker Compose: Prometheus, Grafana, Loki, Alertmanager, `prometheus-pve-exporter` (agentless host + per-CT metrics via the Proxmox API), `blackbox_exporter` (HTTP uptime checks), an AdGuard metrics exporter, and a central Alloy instance that relays journald logs into Loki
-- In scope: Immich, Copyparty, Stirling PDF, FileBrowser, LeafWiki, AdGuard, and the host itself. Pi-hole and SFTPGo are excluded (both being deprecated)
+- Docker Compose: Prometheus, Grafana, Loki, Alertmanager, `prometheus-pve-exporter` (agentless host + per-CT metrics via the Proxmox API), `blackbox_exporter` (HTTP uptime checks), and an AdGuard metrics exporter
+- In scope for metrics/uptime: Immich, Copyparty, Stirling PDF, FileBrowser, LeafWiki, AdGuard, and the host itself. Pi-hole and SFTPGo are excluded (both being deprecated)
+- Logs: the 3 Docker-based LXCs (Immich, Stirling PDF, AdGuard) ship container logs straight to Loki via a per-container Alloy sidecar (`loki.source.docker`); Copyparty, FileBrowser, and LeafWiki ship journald straight to Loki via a native Alloy install (`monitoring/alloy-native.alloy`/`.service`, standalone binary, no Docker). No central relay — every source pushes directly to Loki
+  - The host itself is deliberately **not** in scope for log shipping — it's the bare Proxmox hypervisor, and installing anything extra directly on it (even a lightweight native binary) was ruled out; `check-storage.sh` remains its only monitoring
+  - An earlier design used `systemd-journal-remote`/`-upload` (part of systemd itself, near-zero footprint) to fan the 4 journald-only sources into one shared receiver on CT 108. Abandoned after hitting an unresolved upstream `systemd-journal-remote`/`libmicrohttpd` chunked-transfer-encoding bug that corrupted the stream and crash-looped the client — see git history for the investigation
 - Alerting goes to ntfy.sh via a webhook bridge, reusing the same `NTFY_TOPIC` convention as `proxmox/check-storage.env` — covers container/host-down, resource saturation, and failed HTTP checks. `check-storage.sh`'s own alerting and auto-remediation are separate and untouched
 - Metrics retained 30 days, logs 14 days — disk isn't the constraint (plenty of free space on the DAS), host RAM is; sized deliberately lean (~4GB available on the host) with hard per-sidecar memory limits
 - Grafana is internal only (Tailscale/LAN-only), same trust model as every other service here — no public exposure, no reverse proxy
 - `.env` is gitignored (contains a Proxmox API token, Grafana admin password, and AdGuard admin credentials) — see `.env.example` for template
-- See the file comments in `monitoring/docker-compose.yml` and `monitoring/alloy/central-relay.alloy` for why logs are shipped via a hybrid `systemd-journal-upload`/Alloy design rather than one Alloy instance per container
 
 ## Usage
 
@@ -95,7 +97,7 @@ just push-stirling     # Push Stirling PDF docker-compose
 just push-adguard      # Push AdGuard Home docker-compose
 just push-filebrowser  # Push FileBrowser configs and restart service
 just push-leafwiki     # Push LeafWiki configs and restart service
-just push-monitoring   # Push monitoring stack + journal-upload config to CT 108, host, and native-systemd LXCs
+just push-monitoring   # Push monitoring stack to CT 108 + native Alloy config to Copyparty/FileBrowser/LeafWiki
 just ssh [target]      # SSH into pve, immich, pihole, copyparty, stirling, sftpgo, filebrowser, leafwiki, adguard, or monitoring
 just logs [target]     # Tail logs (immich, pihole, copyparty, stirling, sftpgo, filebrowser, leafwiki, adguard, backup, storage-check, monitoring)
 just status            # Show container status
