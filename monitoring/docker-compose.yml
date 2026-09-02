@@ -79,6 +79,8 @@ services:
   pve-exporter:
     container_name: monitoring_pve_exporter
     image: prompve/prometheus-pve-exporter:latest
+    dns:
+      - 192.168.11.207
     environment:
       # PVE_USER is the bare user, not the full token ID -- that's
       # PVE_TOKEN_NAME separately. Mixing them up returns a 401.
@@ -92,9 +94,19 @@ services:
     mem_limit: 150m
     restart: always
 
+  # Explicit `dns:` pointing straight at AdGuard on this and the two exporters
+  # below -- this LXC's own resolv.conf points to Tailscale's 100.100.100.100,
+  # which lives on the tailscale0 interface and isn't reachable from inside a
+  # container's network namespace, so Docker falls back to guessing an
+  # external resolver (observed: the plain LAN gateway, which doesn't know
+  # about *.home rewrites). See immich/docker-compose.yml's alloy service for
+  # the fuller writeup -- same bug, different containers: this one silently
+  # made every blackbox probe report every *.home service as down.
   blackbox-exporter:
     container_name: monitoring_blackbox_exporter
     image: prom/blackbox-exporter:v0.25.0
+    dns:
+      - 192.168.11.207
     volumes:
       - ./blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
     ports:
@@ -106,6 +118,8 @@ services:
   adguard-exporter:
     container_name: monitoring_adguard_exporter
     image: ghcr.io/henrywhitaker3/adguard-exporter:latest
+    dns:
+      - 192.168.11.207
     environment:
       ADGUARD_SERVERS: ${ADGUARD_URL}
       ADGUARD_USERNAMES: ${ADGUARD_USERNAME}
