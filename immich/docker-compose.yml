@@ -99,9 +99,20 @@ services:
   # journald (as opposed to its Docker containers) isn't currently shipped
   # anywhere -- out of scope for now, see monitoring/alloy-native.alloy's
   # comment for why the journald-shipping design changed.
+  #
+  # Explicit `dns:` pointing straight at AdGuard: this host's own resolv.conf
+  # points to Tailscale's 100.100.100.100, which lives on the tailscale0
+  # interface and isn't reachable from inside a container's network
+  # namespace. Docker falls back to guessing an external resolver from the
+  # host state at container-creation time, and that guess isn't reliably
+  # AdGuard (observed falling back to the plain LAN gateway, which doesn't
+  # know about *.home rewrites) -- causing monitoring.home to fail to
+  # resolve, silently dropping shipped logs. Bypass the guesswork entirely.
   alloy:
     container_name: immich_alloy
     image: grafana/alloy:latest
+    dns:
+      - 192.168.11.207
     volumes:
       - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro

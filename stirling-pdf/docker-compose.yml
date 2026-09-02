@@ -37,9 +37,16 @@ services:
   # journald (as opposed to its Docker containers) isn't currently shipped
   # anywhere -- out of scope for now, see monitoring/alloy-native.alloy's
   # comment for why the journald-shipping design changed.
+  #
+  # Explicit `dns:` pointing straight at AdGuard -- see immich/docker-
+  # compose.yml's alloy service for why Docker's own host-resolv.conf-based
+  # guess (fooled by Tailscale's unreachable-from-containers 100.100.100.100)
+  # isn't reliable here.
   alloy:
     container_name: stirling_alloy
     image: grafana/alloy:latest
+    dns:
+      - 192.168.11.207
     volumes:
       - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro

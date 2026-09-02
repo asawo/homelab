@@ -34,9 +34,17 @@ services:
   # comment for why the journald-shipping design changed.
   # AdGuard's own DNS query metrics come from a separate central exporter
   # (monitoring/docker-compose.yml's adguard-exporter), not from here.
+  #
+  # Explicit `dns:` pointing straight at AdGuard (itself, via its own LAN IP
+  # -- reachable from the bridge network like any other LAN host) -- see
+  # immich/docker-compose.yml's alloy service for why Docker's own host-
+  # resolv.conf-based guess (fooled by Tailscale's unreachable-from-
+  # containers 100.100.100.100) isn't reliable here.
   alloy:
     container_name: adguard_alloy
     image: grafana/alloy:latest
+    dns:
+      - 192.168.11.207
     volumes:
       - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
