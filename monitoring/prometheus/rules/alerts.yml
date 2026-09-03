@@ -9,12 +9,17 @@
 groups:
   - name: monitoring
     rules:
-      # Scoped to the in-scope LXCs only (101-103, 105-107) + the host itself
-      # (id="" for the pve.lan/cluster-level series) -- Pi-hole (100) and
-      # SFTPGo (104) are deliberately stopped/deprecated and would otherwise
-      # false-alarm here, since pve-exporter reports on the whole cluster.
+      # Scoped to the in-scope LXCs only (101-103, 105-107) -- Pi-hole (100)
+      # and SFTPGo (104) are deliberately stopped/deprecated and would
+      # otherwise false-alarm here, since pve-exporter reports on the whole
+      # cluster. Deliberately excludes the host itself (id="node/pve"): CT
+      # 108, which runs this entire Prometheus/Alertmanager stack, is an LXC
+      # on that same host, so a real host outage takes the alerting pipeline
+      # down with it -- no internal rule can ever fire on that. Detecting an
+      # actual host-down event needs an external observer (e.g. a hosted
+      # heartbeat/dead-man's-switch), not a rule here.
       - alert: TargetDown
-        expr: pve_up{id=~"lxc/10[1235-7]|"} == 0
+        expr: pve_up{id=~"lxc/10[1235-7]"} == 0
         for: 2m
         labels:
           severity: critical
@@ -28,6 +33,45 @@ groups:
           severity: critical
         annotations:
           summary: "HTTP check failing for {{ $labels.instance }}"
+
+      # Prometheus's own generic scrape-health signal, covers all 5 scrape
+      # jobs (pve, immich, cadvisor, adguard, blackbox-http) uniformly --
+      # closes the gap TargetDown leaves for every job except pve-exporter's.
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Scrape target {{ $labels.job }}/{{ $labels.instance }} is down"
+
+      # up==0 only catches "Prometheus couldn't reach the target". If
+      # pve-exporter or blackbox-exporter answers scrapes successfully but
+      # drops one specific series (exporter-side bug, one LXC/probe missing
+      # from its output), up stays 1 and TargetDown/HttpCheckFailing never
+      # fire since that series is simply absent, not 0. A single
+      # absent(metric{regex}) over the whole label set only fires once EVERY
+      # matched series vanishes, so each expected id/instance below is
+      # checked individually -- keep this list in sync with the pve job's
+      # in-scope LXCs and the blackbox-http static_configs targets in
+      # prometheus.yml if the monitored fleet changes. No id="node/pve" check
+      # here for the same reason TargetDown above excludes the host: this
+      # stack can't notify about its own host being down.
+      - alert: PveExporterMetricsMissing
+        expr: absent(pve_up{id="lxc/101"}) or absent(pve_up{id="lxc/102"}) or absent(pve_up{id="lxc/103"}) or absent(pve_up{id="lxc/105"}) or absent(pve_up{id="lxc/106"}) or absent(pve_up{id="lxc/107"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "pve-exporter is not reporting pve_up for id {{ $labels.id }}"
+
+      - alert: BlackboxProbeMetricsMissing
+        expr: absent(probe_success{instance="http://photos.home:2283"}) or absent(probe_success{instance="http://files.home:3923"}) or absent(probe_success{instance="http://pdf.home:8080/api/v1/info/status"}) or absent(probe_success{instance="http://nas.home:8080"}) or absent(probe_success{instance="http://wiki.home:8080"}) or absent(probe_success{instance="http://adguard.home:80"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "blackbox-exporter is not reporting probe_success for {{ $labels.instance }}"
 
       - alert: HighCpuUsage
         expr: pve_cpu_usage_ratio > 0.9
