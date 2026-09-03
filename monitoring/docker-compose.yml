@@ -89,8 +89,6 @@ services:
       PVE_TOKEN_VALUE: ${PVE_API_TOKEN_SECRET}
       PVE_VERIFY_SSL: "false"
       PVE_SERVER: pve.lan
-    ports:
-      - '9221:9221'
     mem_limit: 150m
     restart: always
 

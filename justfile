@@ -45,6 +45,23 @@ diff:
             changed=1
         fi
     }
+    sha256_local() {
+        if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "$1" | awk '{print $1}'
+        else
+            shasum -a 256 "$1" | awk '{print $1}'
+        fi
+    }
+    check_diff_env() {
+        local label="$1" local_file="$2" remote_cmd="$3"
+        local local_hash remote_hash
+        local_hash=$(sha256_local "$local_file")
+        remote_hash=$(ssh {{ pve }} "$remote_cmd | sha256sum" 2>/dev/null | awk '{print $1}')
+        if [ "$local_hash" != "$remote_hash" ]; then
+            echo "  $label (differs — contents hidden, may contain secrets)"
+            changed=1
+        fi
+    }
 
     echo "Proxmox"
     check_diff "network.interfaces" proxmox/network.interfaces "cat /etc/network/interfaces"
@@ -64,13 +81,13 @@ diff:
         check_diff "$f" "immich/$f" "pct exec {{ immich_ct }} -- cat /opt/immich/$f"
     done
     if [ -f immich/.env ]; then
-        check_diff ".env" immich/.env "pct exec {{ immich_ct }} -- cat /opt/immich/.env"
+        check_diff_env ".env" immich/.env "pct exec {{ immich_ct }} -- cat /opt/immich/.env"
     fi
 
     echo "Copyparty"
     check_diff "copyparty.service" copyparty/copyparty.service "pct exec {{ copyparty_ct }} -- cat /etc/systemd/system/copyparty.service"
     if [ -f copyparty/.env ]; then
-        check_diff ".env" copyparty/.env "pct exec {{ copyparty_ct }} -- cat /opt/copyparty/.env"
+        check_diff_env ".env" copyparty/.env "pct exec {{ copyparty_ct }} -- cat /opt/copyparty/.env"
     fi
 
     echo "Stirling PDF"
@@ -94,7 +111,7 @@ diff:
     echo "LeafWiki"
     check_diff "leafwiki.service" leafwiki/leafwiki.service "pct exec {{ leafwiki_ct }} -- cat /etc/systemd/system/leafwiki.service"
     if [ -f leafwiki/.env ]; then
-        check_diff ".env" leafwiki/.env "pct exec {{ leafwiki_ct }} -- cat /etc/leafwiki/.env"
+        check_diff_env ".env" leafwiki/.env "pct exec {{ leafwiki_ct }} -- cat /etc/leafwiki/.env"
     fi
 
     echo "Monitoring"
@@ -112,7 +129,7 @@ diff:
     check_diff "uptime-status.json" "monitoring/grafana/provisioning/dashboards/uptime-status.json" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/uptime-status.json"
     check_diff "logs-overview.json" "monitoring/grafana/provisioning/dashboards/logs-overview.json" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/logs-overview.json"
     if [ -f monitoring/.env ]; then
-        check_diff ".env" monitoring/.env "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/.env"
+        check_diff_env ".env" monitoring/.env "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/.env"
     fi
 
     echo "Native Alloy (Copyparty, FileBrowser, LeafWiki)"
@@ -333,7 +350,7 @@ push-monitoring:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "Pushing monitoring stack..."
-    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- mkdir -p /opt/monitoring/prometheus/rules /opt/monitoring/alertmanager /opt/monitoring/loki /opt/monitoring/blackbox /opt/monitoring/alloy /opt/monitoring/grafana/provisioning/datasources /opt/monitoring/grafana/provisioning/dashboards"
+    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- mkdir -p /opt/monitoring/prometheus/rules /opt/monitoring/alertmanager /opt/monitoring/alertmanager-ntfy /opt/monitoring/loki /opt/monitoring/blackbox /opt/monitoring/alloy /opt/monitoring/grafana/provisioning/datasources /opt/monitoring/grafana/provisioning/dashboards"
     cat monitoring/docker-compose.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/docker-compose.yml > /dev/null"
     cat monitoring/prometheus/prometheus.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/prometheus/prometheus.yml > /dev/null"
     cat monitoring/prometheus/rules/alerts.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/prometheus/rules/alerts.yml > /dev/null"
@@ -348,9 +365,6 @@ push-monitoring:
         cat monitoring/.env | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/.env > /dev/null"
     fi
     echo "  grafana provisioning"
-    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- mkdir -p /opt/monitoring/grafana/provisioning/datasources /opt/monitoring/grafana/provisioning/dashboards"
-    cat monitoring/grafana/provisioning/datasources/datasources.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/datasources/datasources.yml > /dev/null"
-    cat monitoring/grafana/provisioning/dashboards/dashboards.yml | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/dashboards.yml > /dev/null"
     cat monitoring/grafana/provisioning/dashboards/adguard.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/adguard.json > /dev/null"
     cat monitoring/grafana/provisioning/dashboards/fleet-overview.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/fleet-overview.json > /dev/null"
     cat monitoring/grafana/provisioning/dashboards/uptime-status.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/uptime-status.json > /dev/null"

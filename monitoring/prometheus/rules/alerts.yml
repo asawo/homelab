@@ -29,6 +29,39 @@ groups:
         annotations:
           summary: "HTTP check failing for {{ $labels.instance }}"
 
+      # Prometheus's own generic scrape-health signal, covers all 5 scrape
+      # jobs (pve, immich, cadvisor, adguard, blackbox-http) uniformly --
+      # closes the gap TargetDown leaves for every job except pve-exporter's.
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Scrape target {{ $labels.job }}/{{ $labels.instance }} is down"
+
+      # up==0 only catches "Prometheus couldn't reach the target". If
+      # pve-exporter or blackbox-exporter answers scrapes successfully but
+      # stops emitting its expected series (exporter-side bug, version
+      # mismatch, crashed sub-collector), up stays 1 and TargetDown/
+      # HttpCheckFailing never fire since their series are simply absent,
+      # not 0. absent() is the standard PromQL pattern for that case.
+      - alert: PveExporterMetricsMissing
+        expr: absent(pve_up{id=~"lxc/10[1235-7]|"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "pve-exporter is not reporting pve_up metrics for the monitored fleet"
+
+      - alert: BlackboxProbeMetricsMissing
+        expr: absent(probe_success)
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "blackbox-exporter is not reporting probe_success metrics"
+
       - alert: HighCpuUsage
         expr: pve_cpu_usage_ratio > 0.9
         for: 10m
