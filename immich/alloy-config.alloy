@@ -27,9 +27,11 @@ discovery.docker "containers" {
 // Drop cadvisor's own glog-style stdout and this Alloy instance's own
 // key=value control-plane logs -- same noise-filtering rationale as
 // adguard/alloy-config.alloy (cadvisor's data already reaches Prometheus as
-// metrics). postgres/redis/machine-learning are left in even though they
-// also don't match the NestJS regex below (bucketing as "unknown") -- unlike
-// cadvisor/alloy, they carry real diagnostic value.
+// metrics). postgres/machine-learning are left in even though they don't
+// match either level regex below (bucketing as "unknown") -- unlike
+// cadvisor/alloy, they carry real diagnostic value. redis is also left in,
+// but gets its own level regex below rather than dumping into "unknown" --
+// its periodic RDB-save chatter (every ~5min) was drowning out real signal.
 discovery.relabel "filtered" {
   targets = discovery.docker.containers.targets
 
@@ -56,9 +58,17 @@ loki.process "default" {
     expression = "\\[Nest\\]\\s+\\S+\\s+-\\s+\\S.*?\\s(?P<extracted_level>LOG|WARN|ERROR|DEBUG|VERBOSE)\\s+\\["
   }
 
+  // Redis's own log format: "<pid>:<M|C|S> <DD Mon YYYY HH:MM:SS.mmm> <char> <msg>",
+  // where the single char before the message is Redis's own severity marker:
+  // '#' warning, '*' notice, '-'/'.' verbose/debug. Second-tier fallback --
+  // only used when the Nest regex above didn't match.
+  stage.regex {
+    expression = "^\\d+:[MCS]\\s+\\d{2}\\s+\\w+\\s+\\d{4}\\s+\\d{2}:\\d{2}:\\d{2}\\.\\d+\\s+(?P<redis_char>[.*#-])\\s"
+  }
+
   stage.template {
     source   = "extracted_level"
-    template = "{{ if eq .Value \"WARN\" }}warning{{ else if eq .Value \"LOG\" }}info{{ else if .Value }}{{ ToLower .Value }}{{ else }}unknown{{ end }}"
+    template = "{{ if .Value }}{{ if eq .Value \"WARN\" }}warning{{ else if eq .Value \"LOG\" }}info{{ else }}{{ ToLower .Value }}{{ end }}{{ else if .redis_char }}{{ if eq .redis_char \"#\" }}warning{{ else if eq .redis_char \"*\" }}info{{ else }}debug{{ end }}{{ else }}unknown{{ end }}"
   }
 
   stage.labels {
