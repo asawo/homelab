@@ -70,6 +70,7 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 - Replacing Pi-hole as the tailnet's DNS resolver (Tailscale Global nameserver) — see migration notes below
 - `adguard/conf/AdGuardHome.yaml` is gitignored (contains admin password hash) — recreated via the setup wizard on first run
 - cAdvisor + Alloy sidecars added for observability; DNS query/blocked/latency stats scraped by a dedicated exporter running centrally in `monitoring/` (AdGuard has no built-in Prometheus endpoint)
+- Upstream DNS: Cloudflare + Quad9 (unfiltered) + Google over DoH, `parallel` mode, AdGuard's own unfiltered DoH as `fallback_dns` — moved off plain UDP/single-provider (Cloudflare-only, `load_balance`) after diagnosing recurring 20s UDP timeouts stalling queries
 
 ### Monitoring (CT 108)
 - Docker Compose: Prometheus, Grafana, Loki, Alertmanager, `prometheus-pve-exporter` (agentless host + per-CT metrics via the Proxmox API), `blackbox_exporter` (HTTP uptime checks), and an AdGuard metrics exporter
