@@ -22,6 +22,17 @@ discovery.relabel "filtered" {
     regex         = "/adguard_(cadvisor|alloy)"
     action        = "drop"
   }
+
+  // Same container-label extraction as immich/stirling-pdf -- only
+  // "adguardhome" survives the drop rule, but the label still matters since
+  // Loki derives service_name from it, replacing "unknown_service".
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.+)"
+    target_label  = "container"
+    replacement   = "$1"
+    action        = "replace"
+  }
 }
 
 loki.source.docker "default" {
