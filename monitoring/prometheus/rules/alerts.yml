@@ -9,12 +9,17 @@
 groups:
   - name: monitoring
     rules:
-      # Scoped to the in-scope LXCs only (101-103, 105-107) + the host itself
-      # (id="" for the pve.lan/cluster-level series) -- Pi-hole (100) and
-      # SFTPGo (104) are deliberately stopped/deprecated and would otherwise
-      # false-alarm here, since pve-exporter reports on the whole cluster.
+      # Scoped to the in-scope LXCs only (101-103, 105-107) -- Pi-hole (100)
+      # and SFTPGo (104) are deliberately stopped/deprecated and would
+      # otherwise false-alarm here, since pve-exporter reports on the whole
+      # cluster. Deliberately excludes the host itself (id="node/pve"): CT
+      # 108, which runs this entire Prometheus/Alertmanager stack, is an LXC
+      # on that same host, so a real host outage takes the alerting pipeline
+      # down with it -- no internal rule can ever fire on that. Detecting an
+      # actual host-down event needs an external observer (e.g. a hosted
+      # heartbeat/dead-man's-switch), not a rule here.
       - alert: TargetDown
-        expr: pve_up{id=~"lxc/10[1235-7]|"} == 0
+        expr: pve_up{id=~"lxc/10[1235-7]"} == 0
         for: 2m
         labels:
           severity: critical
@@ -49,9 +54,11 @@ groups:
       # matched series vanishes, so each expected id/instance below is
       # checked individually -- keep this list in sync with the pve job's
       # in-scope LXCs and the blackbox-http static_configs targets in
-      # prometheus.yml if the monitored fleet changes.
+      # prometheus.yml if the monitored fleet changes. No id="node/pve" check
+      # here for the same reason TargetDown above excludes the host: this
+      # stack can't notify about its own host being down.
       - alert: PveExporterMetricsMissing
-        expr: absent(pve_up{id="lxc/101"}) or absent(pve_up{id="lxc/102"}) or absent(pve_up{id="lxc/103"}) or absent(pve_up{id="lxc/105"}) or absent(pve_up{id="lxc/106"}) or absent(pve_up{id="lxc/107"}) or absent(pve_up{id="node/pve"})
+        expr: absent(pve_up{id="lxc/101"}) or absent(pve_up{id="lxc/102"}) or absent(pve_up{id="lxc/103"}) or absent(pve_up{id="lxc/105"}) or absent(pve_up{id="lxc/106"}) or absent(pve_up{id="lxc/107"})
         for: 5m
         labels:
           severity: critical
