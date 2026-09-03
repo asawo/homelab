@@ -121,7 +121,7 @@ services:
   # resolve, silently dropping shipped logs. Bypass the guesswork entirely.
   alloy:
     container_name: immich_alloy
-    image: grafana/alloy:latest
+    image: grafana/alloy:v1.19.2
     dns:
       - 192.168.11.207
     volumes:
