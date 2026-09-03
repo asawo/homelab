@@ -42,25 +42,29 @@ groups:
 
       # up==0 only catches "Prometheus couldn't reach the target". If
       # pve-exporter or blackbox-exporter answers scrapes successfully but
-      # stops emitting its expected series (exporter-side bug, version
-      # mismatch, crashed sub-collector), up stays 1 and TargetDown/
-      # HttpCheckFailing never fire since their series are simply absent,
-      # not 0. absent() is the standard PromQL pattern for that case.
+      # drops one specific series (exporter-side bug, one LXC/probe missing
+      # from its output), up stays 1 and TargetDown/HttpCheckFailing never
+      # fire since that series is simply absent, not 0. A single
+      # absent(metric{regex}) over the whole label set only fires once EVERY
+      # matched series vanishes, so each expected id/instance below is
+      # checked individually -- keep this list in sync with the pve job's
+      # in-scope LXCs and the blackbox-http static_configs targets in
+      # prometheus.yml if the monitored fleet changes.
       - alert: PveExporterMetricsMissing
-        expr: absent(pve_up{id=~"lxc/10[1235-7]|"})
+        expr: absent(pve_up{id="lxc/101"}) or absent(pve_up{id="lxc/102"}) or absent(pve_up{id="lxc/103"}) or absent(pve_up{id="lxc/105"}) or absent(pve_up{id="lxc/106"}) or absent(pve_up{id="lxc/107"}) or absent(pve_up{id=""})
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: "pve-exporter is not reporting pve_up metrics for the monitored fleet"
+          summary: "pve-exporter is not reporting pve_up for id {{ $labels.id }}"
 
       - alert: BlackboxProbeMetricsMissing
-        expr: absent(probe_success)
+        expr: absent(probe_success{instance="http://photos.home:2283"}) or absent(probe_success{instance="http://files.home:3923"}) or absent(probe_success{instance="http://pdf.home:8080/api/v1/info/status"}) or absent(probe_success{instance="http://nas.home:8080"}) or absent(probe_success{instance="http://wiki.home:8080"}) or absent(probe_success{instance="http://adguard.home:80"})
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: "blackbox-exporter is not reporting probe_success metrics"
+          summary: "blackbox-exporter is not reporting probe_success for {{ $labels.instance }}"
 
       - alert: HighCpuUsage
         expr: pve_cpu_usage_ratio > 0.9
