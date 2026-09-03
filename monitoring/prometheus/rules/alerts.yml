@@ -51,7 +51,7 @@ groups:
       # in-scope LXCs and the blackbox-http static_configs targets in
       # prometheus.yml if the monitored fleet changes.
       - alert: PveExporterMetricsMissing
-        expr: absent(pve_up{id="lxc/101"}) or absent(pve_up{id="lxc/102"}) or absent(pve_up{id="lxc/103"}) or absent(pve_up{id="lxc/105"}) or absent(pve_up{id="lxc/106"}) or absent(pve_up{id="lxc/107"}) or absent(pve_up{id=""})
+        expr: absent(pve_up{id="lxc/101"}) or absent(pve_up{id="lxc/102"}) or absent(pve_up{id="lxc/103"}) or absent(pve_up{id="lxc/105"}) or absent(pve_up{id="lxc/106"}) or absent(pve_up{id="lxc/107"}) or absent(pve_up{id="node/pve"})
         for: 5m
         labels:
           severity: critical
