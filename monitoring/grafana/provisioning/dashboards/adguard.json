@@ -581,14 +581,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "topk(10, adguard_top_clients{server=\"$server\"})",
+          "expr": "topk(10, adguard_top_clients{server=\"$server\"} unless (adguard_top_clients{server=\"$server\", client=~\"^(192\\\\.168\\\\.11\\\\.|172\\\\.18\\\\.).*\"} or adguard_top_clients{server=\"$server\", name=~\"^infra: .*\"}))",
           "instant": true,
           "interval": "",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
       ],
-      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts.",
+      "description": "Personal devices only -- excludes homelab/infra clients (LAN 192.168.11.x, Docker bridge 172.18.x, and any AdGuard client named 'infra: *'). See the Internal / Infra Traffic row for that breakdown. The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts.",
       "title": "Top Clients (rolling 24h)",
       "type": "piechart"
     },
@@ -600,7 +600,40 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
@@ -609,6 +642,10 @@
               {
                 "color": "green",
                 "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           },
@@ -624,21 +661,17 @@
       },
       "id": 66,
       "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
       },
       "pluginVersion": "12.1.1",
       "targets": [
@@ -649,16 +682,15 @@
           },
           "editorMode": "code",
           "expr": "adguard_queries{server=\"$server\"}",
-          "instant": true,
-          "interval": "",
+          "interval": "1h",
           "legendFormat": "{{server}}",
-          "range": false,
+          "range": true,
           "refId": "A"
         }
       ],
-      "description": "This is AdGuard's own rolling-24h total, not a Prometheus counter -- graphed as a time series it produced a visible step every hour when AdGuard's internal hourly bucket rolled over. Shown as a single current value instead.",
       "title": "DNS queries (rolling 24h)",
-      "type": "stat"
+      "type": "timeseries",
+      "description": "This is AdGuard's own rolling-24h total (a moving sum), not a per-hour count -- resampled to one point/hour with linear interpolation so the hourly bucket rollover reads as a plain step instead of a smoothed spike."
     },
     {
       "datasource": {
@@ -721,14 +753,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (type) (adguard_query_types{server=\"$server\"})",
+          "expr": "sum by (type) (adguard_query_types{server=\"$server\"} and on(client) (adguard_top_clients{server=\"$server\"} unless (adguard_top_clients{server=\"$server\", client=~\"^(192\\\\.168\\\\.11\\\\.|172\\\\.18\\\\.).*\"} or adguard_top_clients{server=\"$server\", name=~\"^infra: .*\"})))",
           "instant": false,
           "interval": "",
           "legendFormat": "{{type}}",
           "refId": "A"
         }
       ],
-      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so stale client/type combinations may inflate totals until the exporter restarts. Also note this isn't a rolling-24h stat like the other panels here -- it's tallied from AdGuard's latest 1,000 raw query-log entries (/control/querylog), a query-count window rather than a time window.",
+      "description": "Personal devices only, via a join against the external subset of adguard_top_clients on the client IP (adguard_query_types has no name label of its own). A client that falls out of AdGuard's top-clients list entirely would drop out of this panel too. The exporter does not remove label combinations that leave AdGuard's current top list, so stale client/type combinations may inflate totals until the exporter restarts. Also note this isn't a rolling-24h stat like the other panels here -- it's tallied from AdGuard's latest 1,000 raw query-log entries (/control/querylog), a query-count window rather than a time window.",
       "title": "Query Types (latest 1,000 queries)",
       "type": "piechart"
     },
@@ -839,7 +871,40 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
@@ -848,6 +913,10 @@
               {
                 "color": "green",
                 "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           },
@@ -863,21 +932,17 @@
       },
       "id": 62,
       "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
       },
       "pluginVersion": "12.1.1",
       "targets": [
@@ -888,10 +953,9 @@
           },
           "editorMode": "code",
           "expr": "adguard_queries_blocked{server=\"$server\"}",
-          "instant": true,
-          "interval": "",
+          "instant": false,
+          "interval": "1h",
           "legendFormat": "Blocked {{server}}",
-          "range": false,
           "refId": "A"
         },
         {
@@ -902,10 +966,9 @@
           "editorMode": "code",
           "expr": "adguard_replaced_safesearch{server=\"$server\"}",
           "hide": false,
-          "instant": true,
-          "interval": "",
+          "instant": false,
+          "interval": "1h",
           "legendFormat": "Replaced SafeSearch {{server}}",
-          "range": false,
           "refId": "B"
         },
         {
@@ -916,10 +979,9 @@
           "editorMode": "code",
           "expr": "adguard_replaced_safebrowsing{server=\"$server\"}",
           "hide": false,
-          "instant": true,
-          "interval": "",
+          "instant": false,
+          "interval": "1h",
           "legendFormat": "Replaced SafeBrowsing",
-          "range": false,
           "refId": "C"
         },
         {
@@ -930,16 +992,15 @@
           "editorMode": "code",
           "expr": "sum(adguard_replaced_parental{server=\"$server\"})",
           "hide": false,
-          "instant": true,
-          "interval": "",
+          "instant": false,
+          "interval": "1h",
           "legendFormat": "Replaced Parental {{server}}",
-          "range": false,
           "refId": "D"
         }
       ],
-      "description": "These are AdGuard's own rolling-24h totals, not Prometheus counters -- graphed as a time series they produced a visible step every hour when AdGuard's internal hourly bucket rolled over. Shown as single current values instead.",
       "title": "Queries Blocked/Replaced (rolling 24h)",
-      "type": "stat"
+      "type": "timeseries",
+      "description": "This is AdGuard's own rolling-24h total (a moving sum), not a per-hour count -- resampled to one point/hour with linear interpolation so the hourly bucket rollover reads as a plain step instead of a smoothed spike."
     },
     {
       "datasource": {
@@ -949,7 +1010,40 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
@@ -958,6 +1052,10 @@
               {
                 "color": "green",
                 "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           },
@@ -973,21 +1071,17 @@
       },
       "id": 95,
       "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
         },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "pluginVersion": "12.1.1",
       "targets": [
@@ -997,16 +1091,17 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (name) (adguard_top_clients{server=\"$server\"})",
-          "instant": true,
+          "expr": "sum by (name) (adguard_top_clients{server=\"$server\"} unless (adguard_top_clients{server=\"$server\", client=~\"^(192\\\\.168\\\\.11\\\\.|172\\\\.18\\\\.).*\"} or adguard_top_clients{server=\"$server\", name=~\"^infra: .*\"}))",
+          "instant": false,
           "legendFormat": "{{name}}",
-          "range": false,
-          "refId": "A"
+          "range": true,
+          "refId": "A",
+          "interval": "1h"
         }
       ],
-      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts. This is also AdGuard's own rolling-24h total, not a Prometheus counter -- graphed as a time series it produced a visible step every hour when AdGuard's internal hourly bucket rolled over. Shown as single current values instead.",
+      "description": "Personal devices only -- excludes homelab/infra clients (LAN 192.168.11.x, Docker bridge 172.18.x, and any AdGuard client named 'infra: *'). See the Internal / Infra Traffic row for that breakdown. The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts. This is AdGuard's own rolling-24h total (a moving sum), not a per-hour count -- resampled to one point/hour with linear interpolation so the hourly bucket rollover reads as a plain step instead of a smoothed spike.",
       "title": "Client Queries (rolling 24h)",
-      "type": "stat"
+      "type": "timeseries"
     },
     {
       "collapsed": false,
@@ -1592,6 +1687,182 @@
             "renameByName": {
               "Value": "Requests",
               "upstream": "Upstream"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 36
+      },
+      "id": 110,
+      "panels": [],
+      "title": "Internal / Infra Traffic",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Sum of DNS query volume attributed to homelab/infra clients (LAN 192.168.11.x, Docker bridge 172.18.x, and AdGuard clients named 'infra: *') -- excluded from the personal-device panels above.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 37
+      },
+      "id": 111,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(adguard_top_clients{server=\"$server\", client=~\"^(192\\\\.168\\\\.11\\\\.|172\\\\.18\\\\.).*\"} or adguard_top_clients{server=\"$server\", name=~\"^infra: .*\"})",
+          "instant": true,
+          "legendFormat": "Internal / Infra",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Internal / Infra Query Volume (rolling 24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Per-CT breakdown of infra DNS query volume -- useful for spotting a service generating excess DNS traffic (e.g. a scrape/health-check misconfiguration).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 6,
+        "y": 37
+      },
+      "id": 112,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "topk(15, sum by (name) (adguard_top_clients{server=\"$server\", client=~\"^(192\\\\.168\\\\.11\\\\.|172\\\\.18\\\\.).*\"} or adguard_top_clients{server=\"$server\", name=~\"^infra: .*\"}))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Internal / Infra Clients (rolling 24h)",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "client": true,
+              "instance": true,
+              "job": true,
+              "server": true
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Value": "Queries",
+              "name": "Client"
             }
           }
         }
