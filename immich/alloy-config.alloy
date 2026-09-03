@@ -40,6 +40,19 @@ discovery.relabel "filtered" {
     regex         = "/immich_(cadvisor|alloy)"
     action        = "drop"
   }
+
+  // Strip the "immich_" prefix off the container name (Docker's own name
+  // includes a leading "/") into its own `container` label -- surviving
+  // targets are server/postgres/redis/machine_learning. Without this, every
+  // container's stream collapsed into the same {host="immich"} label set
+  // with no way to filter by service in Explore.
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/immich_(.+)"
+    target_label  = "container"
+    replacement   = "$1"
+    action        = "replace"
+  }
 }
 
 loki.source.docker "default" {
