@@ -183,7 +183,7 @@
         "showTime": true,
         "showLabels": true,
         "showCommonLabels": false,
-        "wrapLogMessage": true,
+        "wrapLogMessage": false,
         "prettifyLogMessage": false,
         "enableLogDetails": true,
         "dedupStrategy": "none",
