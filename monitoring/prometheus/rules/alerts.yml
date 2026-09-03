@@ -54,9 +54,10 @@ groups:
         annotations:
           summary: "DNS check failing for {{ $labels.instance }}"
 
-      # Prometheus's own generic scrape-health signal, covers all 5 scrape
-      # jobs (pve, immich, cadvisor, adguard, blackbox-http) uniformly --
-      # closes the gap TargetDown leaves for every job except pve-exporter's.
+      # Prometheus's own generic scrape-health signal, covers all 6 scrape
+      # jobs (pve, immich, cadvisor, adguard, blackbox-http, blackbox-dns)
+      # uniformly -- closes the gap TargetDown leaves for every job except
+      # pve-exporter's.
       - alert: PrometheusTargetDown
         expr: up == 0
         for: 2m

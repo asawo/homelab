@@ -513,6 +513,7 @@
           "refId": "A"
         }
       ],
+      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts.",
       "title": "Top Queries by Domain (rolling 24h)",
       "type": "piechart"
     },
@@ -587,6 +588,7 @@
           "refId": "A"
         }
       ],
+      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts.",
       "title": "Top Clients (rolling 24h)",
       "type": "piechart"
     },
@@ -750,14 +752,15 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "adguard_query_types{server=\"$server\"}",
+          "expr": "sum by (type) (adguard_query_types{server=\"$server\"})",
           "instant": false,
           "interval": "",
           "legendFormat": "{{type}}",
           "refId": "A"
         }
       ],
-      "title": "Query Types (rolling 24h)",
+      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so stale client/type combinations may inflate totals until the exporter restarts. Also note this isn't a rolling-24h stat like the other panels here -- it's tallied from AdGuard's latest 1,000 raw query-log entries (/control/querylog), a query-count window rather than a time window.",
+      "title": "Query Types (latest 1,000 queries)",
       "type": "piechart"
     },
     {
@@ -1093,6 +1096,7 @@
           "refId": "A"
         }
       ],
+      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts.",
       "title": "Client Queries (rolling 24h)",
       "type": "timeseries"
     },
@@ -1222,7 +1226,8 @@
           "refId": "B"
         }
       ],
-      "title": "Clients (rolling 24h)",
+      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts. Avg Latency is a live rate, not a snapshot, and isn't affected by this.",
+      "title": "Clients",
       "transformations": [
         {
           "id": "timeSeriesTable",
@@ -1250,8 +1255,8 @@
             "indexByName": {},
             "renameByName": {
               "Trend #B": "Latency",
-              "Value": "Requests",
-              "Value #A": "Total",
+              "Value": "Queries (rolling 24h)",
+              "Value #A": "Queries (rolling 24h)",
               "Value #B": "Avg Latency",
               "client": "Client",
               "name": "Name",
@@ -1354,6 +1359,7 @@
           "refId": "A"
         }
       ],
+      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts.",
       "title": "Top Blocked Domains (rolling 24h)",
       "transformations": [
         {
@@ -1444,6 +1450,7 @@
           "refId": "A"
         }
       ],
+      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts.",
       "title": "Top Queries (rolling 24h)",
       "transformations": [
         {
@@ -1659,6 +1666,7 @@
           "refId": "A"
         }
       ],
+      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts.",
       "title": "Upstreams (rolling 24h)",
       "transformations": [
         {
