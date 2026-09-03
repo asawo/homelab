@@ -6,9 +6,34 @@ discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
 }
 
+// Drop cadvisor's own glog-style stdout and this Alloy instance's own
+// key=value control-plane logs -- same noise-filtering rationale as
+// adguard/alloy-config.alloy (cadvisor's data already reaches Prometheus as
+// metrics). Also extract the container name into its own `container` label
+// (same as immich/alloy-config.alloy) so Explore can filter by service --
+// only "stirling_pdf" survives the drop rule, but the label still matters
+// since Loki derives service_name from it, replacing "unknown_service".
+discovery.relabel "filtered" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/stirling_(cadvisor|alloy)"
+    action        = "drop"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.+)"
+    target_label  = "container"
+    replacement   = "$1"
+    action        = "replace"
+  }
+}
+
 loki.source.docker "default" {
   host       = "unix:///var/run/docker.sock"
-  targets    = discovery.docker.containers.targets
+  targets    = discovery.relabel.filtered.output
   labels     = { host = "stirling-pdf" }
   forward_to = [loki.process.default.receiver]
 }
