@@ -5,3 +5,10 @@ modules:
     http:
       valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
       method: GET
+  dns_internal:
+    prober: dns
+    timeout: 5s
+    dns:
+      transport_protocol: udp
+      query_name: photos.home
+      query_type: A

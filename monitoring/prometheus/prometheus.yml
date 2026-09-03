@@ -80,3 +80,21 @@ scrape_configs:
         replacement: blackbox-exporter:9115
       - source_labels: [__param_target]
         target_label: instance
+
+  # Queries AdGuard's own DNS resolution directly (bypassing HTTP, and
+  # bypassing every other consumer's dependency on AdGuard for their own
+  # *.home resolution). See DnsCheckFailing in rules/alerts.yml.
+  - job_name: blackbox-dns
+    metrics_path: /probe
+    params:
+      module: [dns_internal]
+    static_configs:
+      - targets:
+          - 192.168.11.207:53
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+      - source_labels: [__param_target]
+        target_label: instance
