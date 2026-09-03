@@ -600,40 +600,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "smooth",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "mode": "thresholds"
           },
           "mappings": [],
           "thresholds": {
@@ -642,10 +609,6 @@
               {
                 "color": "green",
                 "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           },
@@ -661,17 +624,21 @@
       },
       "id": 66,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "none"
-        }
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
       "pluginVersion": "12.1.1",
       "targets": [
@@ -682,14 +649,16 @@
           },
           "editorMode": "code",
           "expr": "adguard_queries{server=\"$server\"}",
+          "instant": true,
           "interval": "",
           "legendFormat": "{{server}}",
-          "range": true,
+          "range": false,
           "refId": "A"
         }
       ],
+      "description": "This is AdGuard's own rolling-24h total, not a Prometheus counter -- graphed as a time series it produced a visible step every hour when AdGuard's internal hourly bucket rolled over. Shown as a single current value instead.",
       "title": "DNS queries (rolling 24h)",
-      "type": "timeseries"
+      "type": "stat"
     },
     {
       "datasource": {
@@ -870,40 +839,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "smooth",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "mode": "thresholds"
           },
           "mappings": [],
           "thresholds": {
@@ -912,10 +848,6 @@
               {
                 "color": "green",
                 "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           },
@@ -931,17 +863,21 @@
       },
       "id": 62,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "none"
-        }
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
       "pluginVersion": "12.1.1",
       "targets": [
@@ -952,9 +888,10 @@
           },
           "editorMode": "code",
           "expr": "adguard_queries_blocked{server=\"$server\"}",
-          "instant": false,
+          "instant": true,
           "interval": "",
           "legendFormat": "Blocked {{server}}",
+          "range": false,
           "refId": "A"
         },
         {
@@ -965,9 +902,10 @@
           "editorMode": "code",
           "expr": "adguard_replaced_safesearch{server=\"$server\"}",
           "hide": false,
-          "instant": false,
+          "instant": true,
           "interval": "",
           "legendFormat": "Replaced SafeSearch {{server}}",
+          "range": false,
           "refId": "B"
         },
         {
@@ -978,9 +916,10 @@
           "editorMode": "code",
           "expr": "adguard_replaced_safebrowsing{server=\"$server\"}",
           "hide": false,
-          "instant": false,
+          "instant": true,
           "interval": "",
           "legendFormat": "Replaced SafeBrowsing",
+          "range": false,
           "refId": "C"
         },
         {
@@ -991,14 +930,16 @@
           "editorMode": "code",
           "expr": "sum(adguard_replaced_parental{server=\"$server\"})",
           "hide": false,
-          "instant": false,
+          "instant": true,
           "interval": "",
           "legendFormat": "Replaced Parental {{server}}",
+          "range": false,
           "refId": "D"
         }
       ],
+      "description": "These are AdGuard's own rolling-24h totals, not Prometheus counters -- graphed as a time series they produced a visible step every hour when AdGuard's internal hourly bucket rolled over. Shown as single current values instead.",
       "title": "Queries Blocked/Replaced (rolling 24h)",
-      "type": "timeseries"
+      "type": "stat"
     },
     {
       "datasource": {
@@ -1008,40 +949,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 15,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "smooth",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "mode": "thresholds"
           },
           "mappings": [],
           "thresholds": {
@@ -1050,10 +958,6 @@
               {
                 "color": "green",
                 "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           },
@@ -1069,17 +973,21 @@
       },
       "id": 95,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
       "pluginVersion": "12.1.1",
       "targets": [
@@ -1090,15 +998,15 @@
           },
           "editorMode": "code",
           "expr": "sum by (name) (adguard_top_clients{server=\"$server\"})",
-          "instant": false,
+          "instant": true,
           "legendFormat": "{{name}}",
-          "range": true,
+          "range": false,
           "refId": "A"
         }
       ],
-      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts.",
+      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts. This is also AdGuard's own rolling-24h total, not a Prometheus counter -- graphed as a time series it produced a visible step every hour when AdGuard's internal hourly bucket rolled over. Shown as single current values instead.",
       "title": "Client Queries (rolling 24h)",
-      "type": "timeseries"
+      "type": "stat"
     },
     {
       "collapsed": false,
