@@ -66,9 +66,25 @@ loki.process "default" {
     expression = "^\\d+:[MCS]\\s+\\d{2}\\s+\\w+\\s+\\d{4}\\s+\\d{2}:\\d{2}:\\d{2}\\.\\d+\\s+(?P<redis_char>[.*#-])\\s"
   }
 
+  // Third-tier: some Nest log calls (e.g. ServerService's startup "Feature
+  // Flags: {...}") pretty-print a multi-line JSON object as their message.
+  // Docker's json-file driver splits on newlines, so only the FIRST physical
+  // line carries the "[Nest]" prefix -- every continuation line is an
+  // orphaned fragment with no level marker at all. A proper fix would
+  // reconstruct these into one entry via stage.multiline, but its docs don't
+  // say whether buffering is per-stream or global, and this pipeline is
+  // shared across containers (immich-server/postgres/redis/ml all flow
+  // through here) -- risking silently merging unrelated containers' lines
+  // felt worse than leaving this as a cosmetic gap. Just recognize the shape
+  // (bare `{`/`}` or a `"key":` line) and bucket it as low-priority "debug"
+  // instead of alarming "unknown".
+  stage.regex {
+    expression = "^\\s*(?P<json_continuation>[{}]|\"[^\"]+\"\\s*:)"
+  }
+
   stage.template {
     source   = "extracted_level"
-    template = "{{ if .Value }}{{ if eq .Value \"WARN\" }}warning{{ else if eq .Value \"LOG\" }}info{{ else }}{{ ToLower .Value }}{{ end }}{{ else if .redis_char }}{{ if eq .redis_char \"#\" }}warning{{ else if eq .redis_char \"*\" }}info{{ else }}debug{{ end }}{{ else }}unknown{{ end }}"
+    template = "{{ if .Value }}{{ if eq .Value \"WARN\" }}warning{{ else if eq .Value \"LOG\" }}info{{ else }}{{ ToLower .Value }}{{ end }}{{ else if .redis_char }}{{ if eq .redis_char \"#\" }}warning{{ else if eq .redis_char \"*\" }}info{{ else }}debug{{ end }}{{ else if .json_continuation }}debug{{ else }}unknown{{ end }}"
   }
 
   stage.labels {
