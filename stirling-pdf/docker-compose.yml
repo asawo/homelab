@@ -55,6 +55,10 @@ services:
     volumes:
       - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    command: ["run", "--server.http.listen-addr=127.0.0.1:12345", "/etc/alloy/config.alloy"]
+      - alloy-data:/var/lib/alloy/data
+    command: ["run", "--server.http.listen-addr=127.0.0.1:12345", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
     mem_limit: 300m
     restart: always
+
+volumes:
+  alloy-data:

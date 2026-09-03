@@ -153,7 +153,7 @@ pull:
     ssh {{ pve }} "cat /usr/local/bin/borg-backup.sh" > proxmox/borg-backup.sh
     ssh {{ pve }} "cat /usr/local/bin/check-storage.sh" > proxmox/check-storage.sh
     ssh {{ pve }} "crontab -l" > proxmox/crontab
-    ssh {{ pve }} "cat /usr/local/etc/check-storage.env" > proxmox/check-storage.env 2>/dev/null || true
+    tmp=$(mktemp); ssh {{ pve }} "cat /usr/local/etc/check-storage.env" > "$tmp" 2>/dev/null && [ -s "$tmp" ] && mv "$tmp" proxmox/check-storage.env || { echo "  Skipped proxmox/check-storage.env (not found or unreachable) -- left unchanged"; rm -f "$tmp"; }
     ssh {{ pve }} "pct config 100" > proxmox/ct-100-pihole.conf
     ssh {{ pve }} "pct config {{ immich_ct }}" > proxmox/ct-101-immich.conf
 
@@ -212,7 +212,7 @@ pull:
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/fleet-overview.json" > monitoring/grafana/provisioning/dashboards/fleet-overview.json
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/uptime-status.json" > monitoring/grafana/provisioning/dashboards/uptime-status.json
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/logs-overview.json" > monitoring/grafana/provisioning/dashboards/logs-overview.json
-    ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/.env" > monitoring/.env 2>/dev/null || true
+    tmp=$(mktemp); ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/.env" > "$tmp" 2>/dev/null && [ -s "$tmp" ] && mv "$tmp" monitoring/.env || { echo "  Skipped monitoring/.env (not found or unreachable) -- left unchanged"; rm -f "$tmp"; }
     ssh {{ pve }} "pct config {{ monitoring_ct }}" > proxmox/ct-108-monitoring.conf
 
     echo "Pulling native Alloy configs..."

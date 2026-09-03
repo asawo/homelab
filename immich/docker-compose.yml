@@ -26,8 +26,8 @@ services:
       - .env
     ports:
       - '2283:2283'
-      - '${IMMICH_API_METRICS_PORT:-8081}:8081'
-      - '${IMMICH_MICROSERVICES_METRICS_PORT:-8082}:8082'
+      - '${IMMICH_API_METRICS_PORT:-8081}:${IMMICH_API_METRICS_PORT:-8081}'
+      - '${IMMICH_MICROSERVICES_METRICS_PORT:-8082}:${IMMICH_MICROSERVICES_METRICS_PORT:-8082}'
     depends_on:
       - redis
       - database
@@ -127,9 +127,11 @@ services:
     volumes:
       - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    command: ["run", "--server.http.listen-addr=127.0.0.1:12345", "/etc/alloy/config.alloy"]
+      - alloy-data:/var/lib/alloy/data
+    command: ["run", "--server.http.listen-addr=127.0.0.1:12345", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
     mem_limit: 300m
     restart: always
 
 volumes:
   model-cache:
+  alloy-data:
