@@ -1,0 +1,62 @@
+// Docker-log-source only -- see immich/alloy-config.alloy for why, including
+// the shared `host` label name and the "unknown" fallback bucket. Stirling
+// PDF's logger emits a clean, unwrapped level token ("HH:MM:SS.mmm [thread]
+// LEVEL logger.class - message"), so no ANSI-stripping stage is needed here.
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Drop cadvisor's own glog-style stdout and this Alloy instance's own
+// key=value control-plane logs -- same noise-filtering rationale as
+// adguard/alloy-config.alloy (cadvisor's data already reaches Prometheus as
+// metrics). Also extract the container name into its own `container` label
+// (same as immich/alloy-config.alloy) so Explore can filter by service --
+// only "stirling_pdf" survives the drop rule, but the label still matters
+// since Loki derives service_name from it, replacing "unknown_service".
+discovery.relabel "filtered" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/stirling_(cadvisor|alloy)"
+    action        = "drop"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.+)"
+    target_label  = "container"
+    replacement   = "$1"
+    action        = "replace"
+  }
+}
+
+loki.source.docker "default" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.filtered.output
+  labels     = { host = "stirling-pdf" }
+  forward_to = [loki.process.default.receiver]
+}
+
+loki.process "default" {
+  forward_to = [loki.write.default.receiver]
+
+  stage.regex {
+    expression = "^\\d{2}:\\d{2}:\\d{2}\\.\\d{3}\\s+\\[[^\\]]+\\]\\s+(?P<extracted_level>TRACE|DEBUG|INFO|WARN|ERROR)\\s"
+  }
+
+  stage.template {
+    source   = "extracted_level"
+    template = "{{ if eq .Value \"WARN\" }}warning{{ else if .Value }}{{ ToLower .Value }}{{ else }}unknown{{ end }}"
+  }
+
+  stage.labels {
+    values = { level = "extracted_level" }
+  }
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://monitoring.home:3100/loki/api/v1/push"
+  }
+}

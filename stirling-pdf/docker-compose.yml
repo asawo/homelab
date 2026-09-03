@@ -14,3 +14,51 @@ services:
       DOCKER_ENABLE_SECURITY: "false"
       LANGS: "en_US"
     restart: always
+
+  # Per-container resource metrics -- Stirling PDF's own /actuator/prometheus
+  # endpoint is Enterprise-license-gated, so this is metrics-only coverage
+  # for this service (no app-native metrics). v0.60.5 (registry moved to
+  # ghcr.io as of v0.53.0) -- see immich/docker-compose.yml's cadvisor
+  # service for why v0.49.1 silently reported zero per-container metrics
+  # under Docker 29's containerd-snapshotter storage.
+  cadvisor:
+    container_name: stirling_cadvisor
+    image: ghcr.io/google/cadvisor:v0.60.5
+    ports:
+      - '9280:8080'
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+      # See immich/docker-compose.yml's cadvisor service for why.
+      - /etc/machine-id:/etc/machine-id:ro
+    # No /dev/kmsg device mapping -- it doesn't exist inside an unprivileged LXC.
+    mem_limit: 200m
+    restart: always
+
+  # Ships this LXC's Docker container logs to the central Loki. This LXC's own
+  # journald (as opposed to its Docker containers) isn't currently shipped
+  # anywhere -- out of scope for now, see monitoring/alloy-native.alloy's
+  # comment for why the journald-shipping design changed.
+  #
+  # Explicit `dns:` pointing straight at AdGuard -- see immich/docker-
+  # compose.yml's alloy service for why Docker's own host-resolv.conf-based
+  # guess (fooled by Tailscale's unreachable-from-containers 100.100.100.100)
+  # isn't reliable here.
+  alloy:
+    container_name: stirling_alloy
+    image: grafana/alloy:v1.19.2
+    dns:
+      - 192.168.11.207
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    command: ["run", "--server.http.listen-addr=127.0.0.1:12345", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
+    mem_limit: 300m
+    restart: always
+
+volumes:
+  alloy-data:

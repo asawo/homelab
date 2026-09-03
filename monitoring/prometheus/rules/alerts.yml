@@ -1,0 +1,130 @@
+# Covers container/host-down, resource saturation, and failed HTTP checks --
+# deliberately different failure modes than proxmox/check-storage.sh (DAS
+# mount staleness + auto-remediation), so the two systems don't duplicate
+# alerts. check-storage.sh's own ntfy alerting is untouched by this stack.
+#
+# Metric names below are prometheus-pve-exporter's documented names as of
+# this writing -- verify against real scrape output once CT 108 is live and
+# adjust if the exporter version in use differs.
+groups:
+  - name: monitoring
+    rules:
+      # Scoped to the in-scope LXCs only (101-103, 105-107) -- Pi-hole (100)
+      # and SFTPGo (104) are deliberately stopped/deprecated and would
+      # otherwise false-alarm here, since pve-exporter reports on the whole
+      # cluster. Deliberately excludes the host itself (id="node/pve"): CT
+      # 108, which runs this entire Prometheus/Alertmanager stack, is an LXC
+      # on that same host, so a real host outage takes the alerting pipeline
+      # down with it -- no internal rule can ever fire on that. Detecting an
+      # actual host-down event needs an external observer (e.g. a hosted
+      # heartbeat/dead-man's-switch), not a rule here.
+      - alert: TargetDown
+        expr: pve_up{id=~"lxc/10[1235-7]"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.id }} is unreachable"
+
+      # Restricted to job="blackbox-http" now that a second blackbox job
+      # (blackbox-dns, below) also produces probe_success -- otherwise a DNS
+      # failure would double-fire both alerts under overlapping meanings.
+      - alert: HttpCheckFailing
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP check failing for {{ $labels.instance }}"
+
+      # Queries AdGuard's own DNS resolution directly (see blackbox-dns job
+      # in prometheus.yml and the dns_internal module in blackbox.yml). Lets
+      # an AdGuard outage be pinpointed independent of the HTTP probes and
+      # every other consumer's own dependency on AdGuard for DNS. Residual
+      # limitation, not solved by this alert: pve-exporter, adguard-exporter,
+      # and all 3 Docker Alloy log-shipping sidecars still depend on AdGuard
+      # for their OWN DNS resolution and go dark together in a real outage --
+      # this gives an operator a directly-actionable signal, not DNS
+      # redundancy for the fleet.
+      - alert: DnsCheckFailing
+        expr: probe_success{job="blackbox-dns"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "DNS check failing for {{ $labels.instance }}"
+
+      # Prometheus's own generic scrape-health signal, covers all 6 scrape
+      # jobs (pve, immich, cadvisor, adguard, blackbox-http, blackbox-dns)
+      # uniformly -- closes the gap TargetDown leaves for every job except
+      # pve-exporter's.
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Scrape target {{ $labels.job }}/{{ $labels.instance }} is down"
+
+      # up==0 only catches "Prometheus couldn't reach the target". If
+      # pve-exporter or blackbox-exporter answers scrapes successfully but
+      # drops one specific series (exporter-side bug, one LXC/probe missing
+      # from its output), up stays 1 and TargetDown/HttpCheckFailing never
+      # fire since that series is simply absent, not 0. A single
+      # absent(metric{regex}) over the whole label set only fires once EVERY
+      # matched series vanishes, so each expected id/instance below is
+      # checked individually -- keep this list in sync with the pve job's
+      # in-scope LXCs and the blackbox-http static_configs targets in
+      # prometheus.yml if the monitored fleet changes. No id="node/pve" check
+      # here for the same reason TargetDown above excludes the host: this
+      # stack can't notify about its own host being down.
+      - alert: PveExporterMetricsMissing
+        expr: absent(pve_up{id="lxc/101"}) or absent(pve_up{id="lxc/102"}) or absent(pve_up{id="lxc/103"}) or absent(pve_up{id="lxc/105"}) or absent(pve_up{id="lxc/106"}) or absent(pve_up{id="lxc/107"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "pve-exporter is not reporting pve_up for id {{ $labels.id }}"
+
+      - alert: BlackboxProbeMetricsMissing
+        expr: absent(probe_success{instance="http://photos.home:2283"}) or absent(probe_success{instance="http://files.home:3923"}) or absent(probe_success{instance="http://pdf.home:8080/api/v1/info/status"}) or absent(probe_success{instance="http://nas.home:8080"}) or absent(probe_success{instance="http://wiki.home:8080"}) or absent(probe_success{instance="http://adguard.home:80"}) or absent(probe_success{instance="192.168.11.207:53"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "blackbox-exporter is not reporting probe_success for {{ $labels.instance }}"
+
+      # Includes the host (id="node/pve") as well as the 6 in-scope LXCs.
+      # Unlike host-DOWN detection above (impossible here -- the alerting
+      # pipeline dies with the host), resource *saturation* is still
+      # observable: if the host is up enough to run CT 108, it's up enough
+      # to be scraped, so a host under CPU/memory/disk pressure can still be
+      # reported before it actually goes down. Excludes CT 100/104 and every
+      # Proxmox storage object (e.g. "storage/pve/local-lvm") -- confirmed
+      # live those use a distinct id="storage/pve/<name>" prefix this regex
+      # doesn't match. Proxmox's "local" storage IS the host's root
+      # filesystem, so node/pve's own disk usage already covers it without
+      # a separate term.
+      - alert: HighCpuUsage
+        expr: pve_cpu_usage_ratio{id=~"node/pve|lxc/10[1235-7]"} > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.id }} CPU usage above 90% for 10m"
+
+      - alert: HighMemoryUsage
+        expr: (pve_memory_usage_bytes{id=~"node/pve|lxc/10[1235-7]"} / pve_memory_size_bytes{id=~"node/pve|lxc/10[1235-7]"}) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.id }} memory usage above 90% for 10m"
+
+      - alert: RootDiskAlmostFull
+        expr: (pve_disk_usage_bytes{id=~"node/pve|lxc/10[1235-7]"} / pve_disk_size_bytes{id=~"node/pve|lxc/10[1235-7]"}) > 0.85
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.id }} root disk usage above 85% (distinct from check-storage.sh's DAS mount checks)"

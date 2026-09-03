@@ -3,6 +3,23 @@ set -uo pipefail
 
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
+# Cron fires this every 5 minutes (proxmox/crontab); a stuck previous run
+# (e.g. mount -a or pct exec hanging on a truly dead DAS) must not let a new
+# one start concurrently and race on STATE_FILE or double-reboot a CT.
+LOCK_FILE="/var/lock/check-storage.sh.lock"
+exec 200>"$LOCK_FILE"
+if ! flock -n 200; then
+  echo "$(date '+%F %T') Another instance is already running, exiting"
+  exit 0
+fi
+
+# Bounds on how long a single remote/device probe may block, so one dead
+# mount or unresponsive CT can't stall the script past the next cron tick.
+PCT_TIMEOUT=10
+MOUNT_TIMEOUT=30
+REBOOT_TIMEOUT=30
+NOTIFY_TIMEOUT=10
+
 MOUNTS=(/mnt/storage /mnt/backup)
 
 declare -A CT_PATHS=(
@@ -33,7 +50,7 @@ log() {
 
 notify() {
   local message="$1" priority="${2:-default}"
-  curl -s -H "Priority: $priority" -d "$message" "ntfy.sh/$NTFY_TOPIC" >/dev/null
+  curl -s --max-time "$NOTIFY_TIMEOUT" -H "Priority: $priority" -d "$message" "ntfy.sh/$NTFY_TOPIC" >/dev/null
 }
 
 save_state() {
@@ -50,7 +67,7 @@ attempted_fix=0
 for m in "${MOUNTS[@]}"; do
   if ! mountpoint -q "$m"; then
     log "$m not mounted, running mount -a"
-    mount -a
+    timeout "$MOUNT_TIMEOUT" mount -a
     attempted_fix=1
   fi
   if ! mountpoint -q "$m"; then
@@ -61,19 +78,21 @@ done
 
 for ct in "${!CT_PATHS[@]}"; do
   path="${CT_PATHS[$ct]}"
-  if ! pct exec "$ct" -- stat "$path" >/dev/null 2>&1; then
+  if ! timeout "$PCT_TIMEOUT" pct exec "$ct" -- ls "$path" >/dev/null 2>&1; then
     log "CT $ct: read check failed on $path"
-    broken=1
     if [ "$ESCALATED" -eq 0 ]; then
       log "CT $ct: rebooting to refresh bind mount"
-      pct reboot "$ct"
+      timeout "$REBOOT_TIMEOUT" pct reboot "$ct"
       attempted_fix=1
       sleep 15
-      if pct exec "$ct" -- stat "$path" >/dev/null 2>&1; then
+      if timeout "$PCT_TIMEOUT" pct exec "$ct" -- ls "$path" >/dev/null 2>&1; then
         log "CT $ct: recovered after reboot"
       else
         log "CT $ct: still failing after reboot"
+        broken=1
       fi
+    else
+      broken=1
     fi
   fi
 done

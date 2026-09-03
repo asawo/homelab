@@ -1,0 +1,100 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - /etc/prometheus/rules/alerts.yml
+
+scrape_configs:
+  # Agentless host + per-CT resource metrics via the Proxmox API. One target
+  # (the cluster/host itself) is correct here, NOT one per container --
+  # pve-exporter returns metrics for every node/CT/VM on the cluster in a
+  # single scrape (confirmed live: `curl pve-exporter:9221/pve?target=pve.lan`
+  # returns pve_* series for all 8 LXCs, filtered to the in-scope 6 --
+  # Immich/101, Copyparty/102, Stirling PDF/103, FileBrowser/105, LeafWiki/106,
+  # AdGuard/107 -- at the Grafana/alerting layer, not here. Pi-hole/100 and
+  # SFTPGo/104 are out of scope but still show up in the raw series since the
+  # exporter can't filter per-target).
+  - job_name: pve
+    static_configs:
+      - targets:
+          - pve.lan
+    metrics_path: /pve
+    params:
+      module: [default]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: pve-exporter:9221
+
+  # Immich's built-in OpenTelemetry/Prometheus metrics (immich-server only --
+  # ML/redis/postgres don't expose this). Requires IMMICH_TELEMETRY_INCLUDE=all
+  # in immich/.env.
+  - job_name: immich
+    static_configs:
+      - targets: ['192.168.11.201:8081']
+        labels: { service: immich-api }
+      - targets: ['192.168.11.201:8082']
+        labels: { service: immich-microservices }
+
+  # Per-container resource metrics for the 3 Docker-based LXCs only.
+  - job_name: cadvisor
+    static_configs:
+      - targets: ['192.168.11.201:9280']
+        labels: { lxc: immich }
+      - targets: ['192.168.11.203:9280']
+        labels: { lxc: stirling-pdf }
+      - targets: ['192.168.11.207:9280']
+        labels: { lxc: adguard }
+
+  - job_name: adguard
+    static_configs:
+      - targets: ['adguard-exporter:9618']
+
+  # Synthetic HTTP checks against each in-scope service's web UI.
+  # Verify hostnames/ports against README before first rollout.
+  - job_name: blackbox-http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://photos.home:2283 # immich
+          - http://files.home:3923 # copyparty
+          - http://pdf.home:8080/api/v1/info/status # stirling-pdf -- root path requires login (401), this doesn't
+          - http://nas.home:8080 # filebrowser
+          - http://wiki.home:8080 # leafwiki
+          - http://adguard.home:80 # adguard -- README says 3000, but the live container actually listens on 80; flag the doc drift separately
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+      - source_labels: [__param_target]
+        target_label: instance
+
+  # Queries AdGuard's own DNS resolution directly (bypassing HTTP, and
+  # bypassing every other consumer's dependency on AdGuard for their own
+  # *.home resolution). See DnsCheckFailing in rules/alerts.yml.
+  - job_name: blackbox-dns
+    metrics_path: /probe
+    params:
+      module: [dns_internal]
+    static_configs:
+      - targets:
+          - 192.168.11.207:53
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+      - source_labels: [__param_target]
+        target_label: instance

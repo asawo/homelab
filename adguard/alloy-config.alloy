@@ -1,0 +1,66 @@
+// Docker-log-source only -- see immich/alloy-config.alloy for why, including
+// the shared `host` label name and the "unknown" fallback bucket. AdGuard's
+// own logger already emits a clean, lowercase, bracketed level token
+// ("YYYY/MM/DD HH:MM:SS.ffffff [level] message"), so only "warn" needs
+// normalizing (to "warning") to match the rest of the fleet.
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Drop cadvisor's own glog-style stdout ("I0902 08:18:55...") and this Alloy
+// instance's own key=value control-plane logs before they reach the level
+// regex below -- neither is AdGuard's own log format, so both were silently
+// filling the "unknown" bucket (confirmed: 100% of recent `level="unknown"`
+// entries traced back to these two, zero genuine unparsed AdGuard lines).
+// cadvisor's data already reaches Prometheus as metrics; shipping its stdout
+// as logs here added noise, not signal.
+discovery.relabel "filtered" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/adguard_(cadvisor|alloy)"
+    action        = "drop"
+  }
+
+  // Same container-label extraction as immich/stirling-pdf -- only
+  // "adguardhome" survives the drop rule, but the label still matters since
+  // Loki derives service_name from it, replacing "unknown_service".
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.+)"
+    target_label  = "container"
+    replacement   = "$1"
+    action        = "replace"
+  }
+}
+
+loki.source.docker "default" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.filtered.output
+  labels     = { host = "adguard" }
+  forward_to = [loki.process.default.receiver]
+}
+
+loki.process "default" {
+  forward_to = [loki.write.default.receiver]
+
+  stage.regex {
+    expression = "^\\d{4}/\\d{2}/\\d{2}\\s+\\d{2}:\\d{2}:\\d{2}\\.\\d+\\s+\\[(?P<extracted_level>\\w+)\\]"
+  }
+
+  stage.template {
+    source   = "extracted_level"
+    template = "{{ if eq .Value \"warn\" }}warning{{ else if .Value }}{{ ToLower .Value }}{{ else }}unknown{{ end }}"
+  }
+
+  stage.labels {
+    values = { level = "extracted_level" }
+  }
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://monitoring.home:3100/loki/api/v1/push"
+  }
+}

@@ -26,6 +26,8 @@ services:
       - .env
     ports:
       - '2283:2283'
+      - '${IMMICH_API_METRICS_PORT:-8081}:${IMMICH_API_METRICS_PORT:-8081}'
+      - '${IMMICH_MICROSERVICES_METRICS_PORT:-8082}:${IMMICH_MICROSERVICES_METRICS_PORT:-8082}'
     depends_on:
       - redis
       - database
@@ -76,5 +78,60 @@ services:
     healthcheck:
       disable: false
 
+  # Per-container resource metrics, scraped remotely by the central Prometheus
+  # in CT 108. Port 9280 kept uniform across all 3 Docker-based LXCs. v0.60.5
+  # (registry moved to ghcr.io as of v0.53.0) -- v0.49.1 predates Docker 29's
+  # switch to containerd-snapshotter storage, which broke ALL per-container
+  # metrics here (not just log noise): cAdvisor couldn't find the classic
+  # overlay2 layerdb path Docker 29 no longer writes, and treated that as
+  # fatal for the whole container rather than just skipping disk-usage
+  # metrics. Fixed upstream in google/cadvisor#3709 (in v0.54.0+).
+  cadvisor:
+    container_name: immich_cadvisor
+    image: ghcr.io/google/cadvisor:v0.60.5
+    ports:
+      - '9280:8080'
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+      # cAdvisor reads /etc/machine-id directly (not via /rootfs), and its own
+      # container doesn't have one -- bind-mounting the host's makes the
+      # periodic "Failed to get system UUID" error go away for good, rather
+      # than relying on however cAdvisor happens to resolve /rootfs internally.
+      - /etc/machine-id:/etc/machine-id:ro
+    # No /dev/kmsg device mapping -- it doesn't exist inside an unprivileged LXC.
+    mem_limit: 200m
+    restart: always
+
+  # Ships this LXC's Docker container logs to the central Loki. This LXC's own
+  # journald (as opposed to its Docker containers) isn't currently shipped
+  # anywhere -- out of scope for now, see monitoring/alloy-native.alloy's
+  # comment for why the journald-shipping design changed.
+  #
+  # Explicit `dns:` pointing straight at AdGuard: this host's own resolv.conf
+  # points to Tailscale's 100.100.100.100, which lives on the tailscale0
+  # interface and isn't reachable from inside a container's network
+  # namespace. Docker falls back to guessing an external resolver from the
+  # host state at container-creation time, and that guess isn't reliably
+  # AdGuard (observed falling back to the plain LAN gateway, which doesn't
+  # know about *.home rewrites) -- causing monitoring.home to fail to
+  # resolve, silently dropping shipped logs. Bypass the guesswork entirely.
+  alloy:
+    container_name: immich_alloy
+    image: grafana/alloy:v1.19.2
+    dns:
+      - 192.168.11.207
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    command: ["run", "--server.http.listen-addr=127.0.0.1:12345", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
+    mem_limit: 300m
+    restart: always
+
 volumes:
   model-cache:
+  alloy-data:

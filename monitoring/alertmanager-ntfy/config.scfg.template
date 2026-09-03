@@ -1,0 +1,10 @@
+# Generated into /etc/ntfy-alertmanager/config at container start (see the
+# alertmanager-ntfy service's command in docker-compose.yml) -- NTFY_TOPIC is
+# substituted in from .env at runtime, never written into this tracked file.
+# Format docs: https://git.xenrox.net/~xenrox/ntfy-alertmanager/tree/config.scfg
+http-address :8080
+
+ntfy {
+    server https://ntfy.sh
+    topic __NTFY_TOPIC__
+}
