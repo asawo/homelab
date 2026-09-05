@@ -13,6 +13,11 @@ services:
     environment:
       DOCKER_ENABLE_SECURITY: "false"
       LANGS: "en_US"
+      # Without an explicit cap the JVM's ergonomic default sizes off what
+      # looks like the Proxmox host's full RAM rather than this LXC's 2048MB
+      # limit (observed MaxHeapSize ~1954MB), leaving no headroom and pushing
+      # the LXC into swap under any memory pressure.
+      JAVA_TOOL_OPTIONS: "-Xmx1024m"
     restart: always
 
   # Per-container resource metrics -- Stirling PDF's own /actuator/prometheus
