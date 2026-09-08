@@ -2,6 +2,10 @@ auto lo
 iface lo inet loopback
 
 iface nic0 inet manual
+	# e1000e + this switch renegotiate EEE every ~10s, flapping the link
+	# (nic0: NIC Link is Down/Up, zero rx/tx errors) and taking the whole
+	# host offline. Disabling EEE on the NIC stops the flap.
+	post-up ethtool --set-eee nic0 eee off || true
 
 auto vmbr0
 iface vmbr0 inet static
