@@ -15,8 +15,8 @@ scrape_configs:
   # (the cluster/host itself) is correct here, NOT one per container --
   # pve-exporter returns metrics for every node/CT/VM on the cluster in a
   # single scrape (confirmed live: `curl pve-exporter:9221/pve?target=pve.lan`
-  # returns pve_* series for all LXCs, filtered to the in-scope 6 --
-  # Immich/101, Copyparty/102, Stirling PDF/103, FileBrowser/105, LeafWiki/106,
+  # returns pve_* series for all LXCs, filtered to the in-scope 5 --
+  # Immich/101, Stirling PDF/103, FileBrowser/105, LeafWiki/106,
   # AdGuard/107 -- at the Grafana/alerting layer, not here).
   - job_name: pve
     static_configs:
@@ -66,7 +66,6 @@ scrape_configs:
     static_configs:
       - targets:
           - http://photos.home:2283 # immich
-          - http://files.home:3923 # copyparty
           - http://pdf.home:8080/api/v1/info/status # stirling-pdf -- root path requires login (401), this doesn't
           - http://nas.home:8080 # filebrowser
           - http://wiki.home:8080 # leafwiki

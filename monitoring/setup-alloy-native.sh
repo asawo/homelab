@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Run once on each non-Docker LXC that ships journald logs natively:
-# Copyparty (102), FileBrowser (105), LeafWiki (106). NOT the host --
+# FileBrowser (105), LeafWiki (106). NOT the host --
 # see monitoring/alloy-native.alloy's comment for why.
 #
 # Installs Grafana Alloy as a standalone binary (no Docker, no apt repo --
