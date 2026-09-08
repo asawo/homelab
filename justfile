@@ -1,6 +1,5 @@
 pve := "root@pve.lan"
 immich_ct := "101"
-copyparty_ct := "102"
 stirling_ct := "103"
 filebrowser_ct := "105"
 leafwiki_ct := "106"
@@ -17,7 +16,6 @@ ssh target="pve":
     case "{{ target }}" in
         pve)      ssh {{ pve }} ;;
         immich)   ssh -t {{ pve }} "pct enter {{ immich_ct }}" ;;
-        copyparty) ssh -t {{ pve }} "pct enter {{ copyparty_ct }}" ;;
         stirling)  ssh -t {{ pve }} "pct enter {{ stirling_ct }}" ;;
         filebrowser) ssh -t {{ pve }} "pct enter {{ filebrowser_ct }}" ;;
         leafwiki) ssh -t {{ pve }} "pct enter {{ leafwiki_ct }}" ;;
@@ -77,12 +75,6 @@ diff:
         check_diff_env ".env" immich/.env "pct exec {{ immich_ct }} -- cat /opt/immich/.env"
     fi
 
-    echo "Copyparty"
-    check_diff "copyparty.service" copyparty/copyparty.service "pct exec {{ copyparty_ct }} -- cat /etc/systemd/system/copyparty.service"
-    if [ -f copyparty/.env ]; then
-        check_diff_env ".env" copyparty/.env "pct exec {{ copyparty_ct }} -- cat /opt/copyparty/.env"
-    fi
-
     echo "Stirling PDF"
     check_diff "docker-compose.yml" "stirling-pdf/docker-compose.yml" "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml"
     check_diff "alloy-config.alloy" "stirling-pdf/alloy-config.alloy" "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/alloy-config.alloy"
@@ -119,8 +111,8 @@ diff:
         check_diff_env ".env" monitoring/.env "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/.env"
     fi
 
-    echo "Native Alloy (Copyparty, FileBrowser, LeafWiki)"
-    for ct in {{ copyparty_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do
+    echo "Native Alloy (FileBrowser, LeafWiki)"
+    for ct in {{ filebrowser_ct }} {{ leafwiki_ct }}; do
         check_diff "CT $ct config.alloy" "monitoring/alloy-native.alloy" "pct exec $ct -- cat /opt/alloy/config.alloy"
         check_diff "CT $ct alloy.service" "monitoring/alloy-native.service" "pct exec $ct -- cat /etc/systemd/system/alloy.service"
     done
@@ -143,7 +135,6 @@ pull:
     tmp=$(mktemp); ssh {{ pve }} "cat /usr/local/etc/check-storage.env" > "$tmp" 2>/dev/null && [ -s "$tmp" ] && mv "$tmp" proxmox/check-storage.env || { echo "  Skipped proxmox/check-storage.env (not found or unreachable) -- left unchanged"; rm -f "$tmp"; }
     ssh {{ pve }} "pct config {{ immich_ct }}" > proxmox/ct-101-immich.conf
 
-    ssh {{ pve }} "pct config {{ copyparty_ct }}" > proxmox/ct-102-copyparty.conf
     ssh {{ pve }} "pct config {{ stirling_ct }}" > proxmox/ct-103-stirling.conf
     ssh {{ pve }} "pct config {{ filebrowser_ct }}" > proxmox/ct-105-filebrowser.conf
     ssh {{ pve }} "pct config {{ leafwiki_ct }}" > proxmox/ct-106-leafwiki.conf
@@ -155,10 +146,6 @@ pull:
     ssh {{ pve }} "pct exec {{ immich_ct }} -- cat /opt/immich/hwaccel.ml.yml" > immich/hwaccel.ml.yml
     ssh {{ pve }} "pct exec {{ immich_ct }} -- cat /opt/immich/.env" > immich/.env
     ssh {{ pve }} "pct exec {{ immich_ct }} -- cat /opt/immich/alloy-config.alloy" > immich/alloy-config.alloy
-
-    echo "Pulling Copyparty configs..."
-    ssh {{ pve }} "pct exec {{ copyparty_ct }} -- cat /etc/systemd/system/copyparty.service" > copyparty/copyparty.service
-    ssh {{ pve }} "pct exec {{ copyparty_ct }} -- cat /opt/copyparty/.env" > copyparty/.env
 
     echo "Pulling Stirling PDF configs..."
     ssh {{ pve }} "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml" > stirling-pdf/docker-compose.yml
@@ -194,8 +181,8 @@ pull:
     ssh {{ pve }} "pct config {{ monitoring_ct }}" > proxmox/ct-108-monitoring.conf
 
     echo "Pulling native Alloy configs..."
-    ssh {{ pve }} "pct exec {{ copyparty_ct }} -- cat /opt/alloy/config.alloy" > monitoring/alloy-native.alloy
-    ssh {{ pve }} "pct exec {{ copyparty_ct }} -- cat /etc/systemd/system/alloy.service" > monitoring/alloy-native.service
+    ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /opt/alloy/config.alloy" > monitoring/alloy-native.alloy
+    ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /etc/systemd/system/alloy.service" > monitoring/alloy-native.service
 
     echo "Done. Run 'git diff' to see what changed."
 
@@ -234,21 +221,6 @@ push-pve:
     echo "  crontab"
     cat proxmox/crontab | ssh {{ pve }} "crontab -"
     echo "Done. Network changes need: just ssh pve, then 'ifreload -a'"
-
-# Push Copyparty configs to the host
-push-copyparty:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "Pushing Copyparty configs..."
-    echo "  copyparty.service"
-    cat copyparty/copyparty.service | ssh {{ pve }} "pct exec {{ copyparty_ct }} -- tee /etc/systemd/system/copyparty.service > /dev/null"
-    if [ -f copyparty/.env ]; then
-        echo "  .env"
-        cat copyparty/.env | ssh {{ pve }} "pct exec {{ copyparty_ct }} -- tee /opt/copyparty/.env > /dev/null"
-    fi
-    echo "Restarting copyparty..."
-    ssh {{ pve }} "pct exec {{ copyparty_ct }} -- bash -c 'systemctl daemon-reload && systemctl restart copyparty'"
-    echo "Done."
 
 # Push Stirling PDF configs to the host
 push-stirling:
@@ -300,7 +272,7 @@ push-leafwiki:
     ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- bash -c 'systemctl daemon-reload && systemctl restart leafwiki'"
     echo "Done."
 
-# Push monitoring stack to CT 108 + native Alloy config to Copyparty/FileBrowser/LeafWiki
+# Push monitoring stack to CT 108 + native Alloy config to FileBrowser/LeafWiki
 push-monitoring:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -325,8 +297,8 @@ push-monitoring:
     cat monitoring/grafana/provisioning/dashboards/uptime-status.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/uptime-status.json > /dev/null"
     cat monitoring/grafana/provisioning/dashboards/logs-overview.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/logs-overview.json > /dev/null"
 
-    echo "Pushing native Alloy config to Copyparty, FileBrowser, LeafWiki..."
-    for ct in {{ copyparty_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do
+    echo "Pushing native Alloy config to FileBrowser, LeafWiki..."
+    for ct in {{ filebrowser_ct }} {{ leafwiki_ct }}; do
         echo "  CT $ct"
         ssh {{ pve }} "pct exec $ct -- mkdir -p /opt/alloy"
         cat monitoring/alloy-native.alloy | ssh {{ pve }} "pct exec $ct -- tee /opt/alloy/config.alloy > /dev/null"
@@ -335,7 +307,7 @@ push-monitoring:
     done
     echo "Done. Restart monitoring stack with: just restart-monitoring"
     echo "Restart native Alloy after a config change with: pct exec <ct> -- systemctl restart alloy"
-    echo "First-time only on each of Copyparty/FileBrowser/LeafWiki: run monitoring/setup-alloy-native.sh, then 'systemctl enable --now alloy'."
+    echo "First-time only on each of FileBrowser/LeafWiki: run monitoring/setup-alloy-native.sh, then 'systemctl enable --now alloy'."
 
 # Restart the monitoring stack on CT 108
 restart-monitoring:
@@ -358,7 +330,6 @@ logs target="immich":
     #!/usr/bin/env bash
     case "{{ target }}" in
         immich)    ssh {{ pve }} "pct exec {{ immich_ct }} -- docker compose -f /opt/immich/docker-compose.yml logs -f --tail 100" ;;
-        copyparty) ssh {{ pve }} "pct exec {{ copyparty_ct }} -- journalctl -u copyparty -f" ;;
         stirling)  ssh {{ pve }} "pct exec {{ stirling_ct }} -- docker compose -f /opt/stirling-pdf/docker-compose.yml logs -f --tail 100" ;;
         filebrowser) ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- journalctl -u filebrowser -f" ;;
         leafwiki)  ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- journalctl -u leafwiki -f" ;;
@@ -366,7 +337,7 @@ logs target="immich":
         backup)    ssh {{ pve }} "tail -f /var/log/borg-backup.log" ;;
         storage-check) ssh {{ pve }} "tail -f /var/log/storage-check.log" ;;
         monitoring) ssh {{ pve }} "pct exec {{ monitoring_ct }} -- docker compose -f /opt/monitoring/docker-compose.yml logs -f --tail 100" ;;
-        *)         echo "Unknown target: {{ target }} (try: immich, copyparty, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring)"; exit 1 ;;
+        *)         echo "Unknown target: {{ target }} (try: immich, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring)"; exit 1 ;;
     esac
 
 # Show container status
@@ -381,12 +352,12 @@ check-storage:
 update-tailscale:
     #!/usr/bin/env bash
     set -e
-    for ct in {{ immich_ct }} {{ copyparty_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do
+    for ct in {{ immich_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do
         echo "=== CT $ct ==="
         ssh {{ pve }} "pct exec $ct -- bash -c 'apt-get update -qq && apt-get install --only-upgrade -y tailscale'"
     done
     echo "Done. Current versions:"
-    for ct in {{ immich_ct }} {{ copyparty_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do
+    for ct in {{ immich_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do
         echo -n "CT $ct: "
         ssh {{ pve }} "pct exec $ct -- tailscale version | head -1"
     done

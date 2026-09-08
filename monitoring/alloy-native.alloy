@@ -1,22 +1,22 @@
-// Shared config for the native (non-Docker) Alloy install on Copyparty,
-// FileBrowser, and LeafWiki -- see monitoring/setup-alloy-native.sh and
+// Shared config for the native (non-Docker) Alloy install on FileBrowser
+// and LeafWiki -- see monitoring/setup-alloy-native.sh and
 // monitoring/alloy-native.service. Reads each host's own local journal and
-// ships it straight to Loki; identical across all three -- loki.source.journal
+// ships it straight to Loki; identical across both -- loki.source.journal
 // doesn't promote journal fields to labels by default (everything comes
 // through under a single job=loki.source.journal.local label otherwise,
-// making the 3 sources indistinguishable), so relabel_rules explicitly
+// making the 2 sources indistinguishable), so relabel_rules explicitly
 // promotes _HOSTNAME/_SYSTEMD_UNIT to real "host"/"unit" labels below.
 // It also maps journald's own PRIORITY field (syslog severity, present on
 // every entry regardless of what the app itself prints) to a baseline
 // "level" -- without this, only apps that print their own recognizable level
-// text (e.g. LeafWiki's structured JSON) get one; plain-text sources
-// (Copyparty, FileBrowser) showed "unknown" otherwise. The loki.process block
+// text (e.g. LeafWiki's structured JSON) get one; the plain-text source
+// (FileBrowser) showed "unknown" otherwise. The loki.process block
 // below lets a real structured level (when present) override this fallback.
 //
 // Replaces an earlier design (systemd-journal-remote/-upload fan-in) that
 // hit an unresolved upstream systemd-journal-remote/libmicrohttpd chunked-
 // transfer-encoding bug -- see git history for the failed attempt. The host
-// itself is deliberately NOT in scope for this: unlike these 3 LXCs, it's
+// itself is deliberately NOT in scope for this: unlike these 2 LXCs, it's
 // the bare Proxmox hypervisor, and the whole point of the original
 // systemd-journal-upload design was to avoid installing anything extra
 // directly on it.
@@ -78,11 +78,11 @@ loki.source.journal "local" {
 // internal scanner logs: "[ERROR] Failed to read root directory...") and an
 // HTTP-status-code regex for access-log lines that carry a status but no
 // level word at all (e.g. FileBrowser's Gin-style "GET | 500 | ..." --
-// 5xx/4xx map to error/warning, everything else stays "info"). Copyparty's
-// access log ("LOG: GET / @*") uses neither convention, so it still falls
-// through to the journald-priority fallback untouched -- every stage below
-// is a no-op on a line that doesn't match, and stage.labels only overwrites
-// "level" when a real one was actually extracted.
+// 5xx/4xx map to error/warning, everything else stays "info"). A line
+// matching neither convention falls through to the journald-priority
+// fallback untouched -- every stage below is a no-op on a line that
+// doesn't match, and stage.labels only overwrites "level" when a real one
+// was actually extracted.
 loki.process "journal" {
   forward_to = [loki.write.default.receiver]
 
