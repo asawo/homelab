@@ -1,9 +1,7 @@
 pve := "root@pve.lan"
-pihole_ct := "100"
 immich_ct := "101"
 copyparty_ct := "102"
 stirling_ct := "103"
-sftpgo_ct := "104"
 filebrowser_ct := "105"
 leafwiki_ct := "106"
 adguard_ct := "107"
@@ -13,16 +11,14 @@ monitoring_ct := "108"
 default:
     @just --list
 
-# SSH into a host (e.g. `just ssh pve`, `just ssh immich`, `just ssh pihole`)
+# SSH into a host (e.g. `just ssh pve`, `just ssh immich`)
 ssh target="pve":
     #!/usr/bin/env bash
     case "{{ target }}" in
         pve)      ssh {{ pve }} ;;
         immich)   ssh -t {{ pve }} "pct enter {{ immich_ct }}" ;;
-        pihole)   ssh -t {{ pve }} "pct enter {{ pihole_ct }}" ;;
         copyparty) ssh -t {{ pve }} "pct enter {{ copyparty_ct }}" ;;
         stirling)  ssh -t {{ pve }} "pct enter {{ stirling_ct }}" ;;
-        sftpgo)   ssh -t {{ pve }} "pct enter {{ sftpgo_ct }}" ;;
         filebrowser) ssh -t {{ pve }} "pct enter {{ filebrowser_ct }}" ;;
         leafwiki) ssh -t {{ pve }} "pct enter {{ leafwiki_ct }}" ;;
         adguard)  ssh -t {{ pve }} "pct enter {{ adguard_ct }}" ;;
@@ -73,9 +69,6 @@ diff:
         check_diff "check-storage.env" proxmox/check-storage.env "cat /usr/local/etc/check-storage.env"
     fi
 
-    echo "Pi-hole"
-    check_diff "pihole.toml" pihole/pihole.toml "pct exec {{ pihole_ct }} -- cat /etc/pihole/pihole.toml"
-
     echo "Immich"
     for f in docker-compose.yml hwaccel.transcoding.yml hwaccel.ml.yml alloy-config.alloy; do
         check_diff "$f" "immich/$f" "pct exec {{ immich_ct }} -- cat /opt/immich/$f"
@@ -97,12 +90,6 @@ diff:
     echo "AdGuard Home"
     check_diff "docker-compose.yml" "adguard/docker-compose.yml" "pct exec {{ adguard_ct }} -- cat /opt/adguard/docker-compose.yml"
     check_diff "alloy-config.alloy" "adguard/alloy-config.alloy" "pct exec {{ adguard_ct }} -- cat /opt/adguard/alloy-config.alloy"
-
-    # SFTPGo (CT 104) is currently not running
-    # echo "SFTPGo"
-    # if [ -f sftpgo/.env ]; then
-    #     check_diff ".env" sftpgo/.env "pct exec {{ sftpgo_ct }} -- cat /opt/sftpgo/.env"
-    # fi
 
     echo "FileBrowser"
     check_diff "config.yaml" filebrowser/config.yaml "pct exec {{ filebrowser_ct }} -- cat /opt/filebrowser/config.yaml"
@@ -154,18 +141,13 @@ pull:
     ssh {{ pve }} "cat /usr/local/bin/check-storage.sh" > proxmox/check-storage.sh
     ssh {{ pve }} "crontab -l" > proxmox/crontab
     tmp=$(mktemp); ssh {{ pve }} "cat /usr/local/etc/check-storage.env" > "$tmp" 2>/dev/null && [ -s "$tmp" ] && mv "$tmp" proxmox/check-storage.env || { echo "  Skipped proxmox/check-storage.env (not found or unreachable) -- left unchanged"; rm -f "$tmp"; }
-    ssh {{ pve }} "pct config 100" > proxmox/ct-100-pihole.conf
     ssh {{ pve }} "pct config {{ immich_ct }}" > proxmox/ct-101-immich.conf
 
     ssh {{ pve }} "pct config {{ copyparty_ct }}" > proxmox/ct-102-copyparty.conf
     ssh {{ pve }} "pct config {{ stirling_ct }}" > proxmox/ct-103-stirling.conf
-    ssh {{ pve }} "pct config {{ sftpgo_ct }}" > proxmox/ct-104-sftpgo.conf
     ssh {{ pve }} "pct config {{ filebrowser_ct }}" > proxmox/ct-105-filebrowser.conf
     ssh {{ pve }} "pct config {{ leafwiki_ct }}" > proxmox/ct-106-leafwiki.conf
     ssh {{ pve }} "pct config {{ adguard_ct }}" > proxmox/ct-107-adguard.conf
-
-    echo "Pulling Pi-hole configs..."
-    ssh {{ pve }} "pct exec {{ pihole_ct }} -- cat /etc/pihole/pihole.toml" > pihole/pihole.toml
 
     echo "Pulling Immich configs..."
     ssh {{ pve }} "pct exec {{ immich_ct }} -- cat /opt/immich/docker-compose.yml" > immich/docker-compose.yml
@@ -185,10 +167,6 @@ pull:
     echo "Pulling AdGuard Home configs..."
     ssh {{ pve }} "pct exec {{ adguard_ct }} -- cat /opt/adguard/docker-compose.yml" > adguard/docker-compose.yml
     ssh {{ pve }} "pct exec {{ adguard_ct }} -- cat /opt/adguard/alloy-config.alloy" > adguard/alloy-config.alloy
-
-    # SFTPGo (CT 104) is currently not running
-    # echo "Pulling SFTPGo configs..."
-    # ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- cat /opt/sftpgo/.env" > sftpgo/.env
 
     echo "Pulling FileBrowser configs..."
     ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /opt/filebrowser/config.yaml" > filebrowser/config.yaml
@@ -235,16 +213,6 @@ push-immich:
         cat immich/.env | ssh {{ pve }} "pct exec {{ immich_ct }} -- tee /opt/immich/.env > /dev/null"
     fi
     echo "Done. Restart with: just restart-immich"
-
-# Push Pi-hole config to the host
-push-pihole:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "Pushing pihole.toml..."
-    cat pihole/pihole.toml | ssh {{ pve }} "pct exec {{ pihole_ct }} -- tee /etc/pihole/pihole.toml > /dev/null"
-    echo "Restarting pihole-FTL..."
-    ssh {{ pve }} "pct exec {{ pihole_ct }} -- systemctl restart pihole-FTL"
-    echo "Done."
 
 # Push Proxmox configs to the host
 push-pve:
@@ -303,19 +271,6 @@ push-adguard:
     echo "  alloy-config.alloy"
     cat adguard/alloy-config.alloy | ssh {{ pve }} "pct exec {{ adguard_ct }} -- tee /opt/adguard/alloy-config.alloy > /dev/null"
     echo "Done. Restart with: just restart-adguard"
-
-# Push SFTPGo configs to the host (currently not running)
-# push-sftpgo:
-#     #!/usr/bin/env bash
-#     set -euo pipefail
-#     echo "Pushing SFTPGo configs..."
-#     if [ -f sftpgo/.env ]; then
-#         echo "  .env"
-#         cat sftpgo/.env | ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- tee /opt/sftpgo/.env > /dev/null"
-#     fi
-#     echo "Restarting sftpgo..."
-#     ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- systemctl restart sftpgo"
-#     echo "Done."
 
 # Push FileBrowser configs to the host
 push-filebrowser:
@@ -398,22 +353,20 @@ restart-stirling:
 restart-adguard:
     ssh {{ pve }} "pct exec {{ adguard_ct }} -- bash -c 'cd /opt/adguard && docker compose down && docker compose up -d'"
 
-# Tail logs (e.g. `just logs immich`, `just logs pihole`, `just logs backup`)
-logs target="pihole":
+# Tail logs (e.g. `just logs immich`, `just logs backup`)
+logs target="immich":
     #!/usr/bin/env bash
     case "{{ target }}" in
         immich)    ssh {{ pve }} "pct exec {{ immich_ct }} -- docker compose -f /opt/immich/docker-compose.yml logs -f --tail 100" ;;
-        pihole)    ssh {{ pve }} "pct exec {{ pihole_ct }} -- tail -f /var/log/pihole/pihole.log" ;;
         copyparty) ssh {{ pve }} "pct exec {{ copyparty_ct }} -- journalctl -u copyparty -f" ;;
         stirling)  ssh {{ pve }} "pct exec {{ stirling_ct }} -- docker compose -f /opt/stirling-pdf/docker-compose.yml logs -f --tail 100" ;;
-        sftpgo)    ssh {{ pve }} "pct exec {{ sftpgo_ct }} -- journalctl -u sftpgo -f" ;;
         filebrowser) ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- journalctl -u filebrowser -f" ;;
         leafwiki)  ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- journalctl -u leafwiki -f" ;;
         adguard)   ssh {{ pve }} "pct exec {{ adguard_ct }} -- docker compose -f /opt/adguard/docker-compose.yml logs -f --tail 100" ;;
         backup)    ssh {{ pve }} "tail -f /var/log/borg-backup.log" ;;
         storage-check) ssh {{ pve }} "tail -f /var/log/storage-check.log" ;;
         monitoring) ssh {{ pve }} "pct exec {{ monitoring_ct }} -- docker compose -f /opt/monitoring/docker-compose.yml logs -f --tail 100" ;;
-        *)         echo "Unknown target: {{ target }} (try: immich, pihole, copyparty, stirling, sftpgo, filebrowser, leafwiki, adguard, backup, storage-check, monitoring)"; exit 1 ;;
+        *)         echo "Unknown target: {{ target }} (try: immich, copyparty, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring)"; exit 1 ;;
     esac
 
 # Show container status
@@ -428,12 +381,12 @@ check-storage:
 update-tailscale:
     #!/usr/bin/env bash
     set -e
-    for ct in {{ pihole_ct }} {{ immich_ct }} {{ copyparty_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do
+    for ct in {{ immich_ct }} {{ copyparty_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do
         echo "=== CT $ct ==="
         ssh {{ pve }} "pct exec $ct -- bash -c 'apt-get update -qq && apt-get install --only-upgrade -y tailscale'"
     done
     echo "Done. Current versions:"
-    for ct in {{ pihole_ct }} {{ immich_ct }} {{ copyparty_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do
+    for ct in {{ immich_ct }} {{ copyparty_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do
         echo -n "CT $ct: "
         ssh {{ pve }} "pct exec $ct -- tailscale version | head -1"
     done
