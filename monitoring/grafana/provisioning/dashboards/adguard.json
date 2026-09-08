@@ -506,15 +506,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "topk(10, adguard_top_queried_domains{server=\"$server\"})",
+          "expr": "topk(10, increase(adguard_top_queried_domains{server=\"$server\"}[$__range]))",
           "instant": true,
           "interval": "",
           "legendFormat": "{{domain}}",
           "refId": "A"
         }
       ],
-      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts.",
-      "title": "Top Queries by Domain (rolling 24h)",
+      "title": "Top Queries by Domain",
       "type": "piechart"
     },
     {
@@ -649,7 +648,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "reqps"
         },
         "overrides": []
       },
@@ -920,7 +919,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "reqps"
         },
         "overrides": []
       },
@@ -952,7 +951,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "adguard_queries_blocked{server=\"$server\"}",
+          "expr": "rate(adguard_queries_blocked[$__rate_interval])",
           "instant": false,
           "interval": "1h",
           "legendFormat": "Blocked {{server}}",
@@ -964,7 +963,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "adguard_replaced_safesearch{server=\"$server\"}",
+          "expr": "rate(adguard_replaced_safesearch[$__rate_interval])",
           "hide": false,
           "instant": false,
           "interval": "1h",
@@ -977,7 +976,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "adguard_replaced_safebrowsing{server=\"$server\"}",
+          "expr": "rate(adguard_replaced_safebrowsing[1m])",
           "hide": false,
           "instant": false,
           "interval": "1h",
@@ -1059,7 +1058,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "reqps"
         },
         "overrides": []
       },
@@ -1205,7 +1204,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk(15, sum by (client, name) (adguard_top_clients{server=\"$server\"}))",
+          "expr": "topk(15, sum by (client, name) (increase(adguard_top_clients{server=\"$server\"}[$__range])))",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -1229,7 +1228,6 @@
           "refId": "B"
         }
       ],
-      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts. Avg Latency is a live rate, not a snapshot, and isn't affected by this.",
       "title": "Clients",
       "transformations": [
         {
@@ -1258,8 +1256,8 @@
             "indexByName": {},
             "renameByName": {
               "Trend #B": "Latency",
-              "Value": "Queries (rolling 24h)",
-              "Value #A": "Queries (rolling 24h)",
+              "Value": "Requests",
+              "Value #A": "Total",
               "Value #B": "Avg Latency",
               "client": "Client",
               "name": "Name",
@@ -1354,7 +1352,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "topk(15, sum by (domain) (adguard_top_blocked_domains{server=\"$server\"}))",
+          "expr": "topk(15, sum by (domain) (increase(adguard_top_blocked_domains[$__range])))",
           "format": "table",
           "instant": true,
           "interval": "",
@@ -1362,8 +1360,7 @@
           "refId": "A"
         }
       ],
-      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts.",
-      "title": "Top Blocked Domains (rolling 24h)",
+      "title": "Top Blocked Domains",
       "transformations": [
         {
           "id": "organize",
@@ -1444,7 +1441,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "topk(15, sum by (domain) (adguard_top_queried_domains{server=\"$server\"}))",
+          "expr": "topk(15, sum by (domain) (increase(adguard_top_queried_domains[$__range])))",
           "format": "table",
           "instant": true,
           "interval": "30s",
@@ -1453,8 +1450,7 @@
           "refId": "A"
         }
       ],
-      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts.",
-      "title": "Top Queries (rolling 24h)",
+      "title": "Top Queries",
       "transformations": [
         {
           "id": "organize",
@@ -1661,7 +1657,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk(15, sum by (upstream) (adguard_top_upstreams{server=\"$server\"}))",
+          "expr": "topk(15, sum by (upstream) (increase(adguard_top_upstreams{server=\"$server\"}[$__range])))",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -1669,8 +1665,7 @@
           "refId": "A"
         }
       ],
-      "description": "The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts.",
-      "title": "Upstreams (rolling 24h)",
+      "title": "Upstreams",
       "transformations": [
         {
           "id": "organize",
