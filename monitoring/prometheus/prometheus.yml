@@ -5,7 +5,7 @@ global:
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: ['alertmanager:9093']
+        - targets: ["alertmanager:9093"]
 
 rule_files:
   - /etc/prometheus/rules/alerts.yml
@@ -38,24 +38,24 @@ scrape_configs:
   # in immich/.env.
   - job_name: immich
     static_configs:
-      - targets: ['192.168.11.201:8081']
+      - targets: ["192.168.11.201:8081"]
         labels: { service: immich-api }
-      - targets: ['192.168.11.201:8082']
+      - targets: ["192.168.11.201:8082"]
         labels: { service: immich-microservices }
 
   # Per-container resource metrics for the 3 Docker-based LXCs only.
   - job_name: cadvisor
     static_configs:
-      - targets: ['192.168.11.201:9280']
+      - targets: ["192.168.11.201:9280"]
         labels: { lxc: immich }
-      - targets: ['192.168.11.203:9280']
+      - targets: ["192.168.11.203:9280"]
         labels: { lxc: stirling-pdf }
-      - targets: ['192.168.11.207:9280']
+      - targets: ["192.168.11.207:9280"]
         labels: { lxc: adguard }
 
   - job_name: adguard
     static_configs:
-      - targets: ['adguard-exporter:9618']
+      - targets: ["adguard-exporter:9618"]
 
   # Synthetic HTTP checks against each in-scope service's web UI.
   # Verify hostnames/ports against README before first rollout.

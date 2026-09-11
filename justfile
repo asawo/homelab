@@ -10,6 +10,36 @@ monitoring_ct := "108"
 default:
     @just --list
 
+# Auto-fix formatting (prettier + shfmt) in place
+fmt:
+    npx --yes prettier@3 --write .
+    git ls-files '*.sh' | xargs shfmt -w -i 2
+
+# Run the same checks CI runs (requires: node/npx, shellcheck, shfmt, docker, gitleaks)
+check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "== prettier =="
+    npx --yes prettier@3 --check .
+    echo "== shellcheck =="
+    git ls-files '*.sh' | xargs shellcheck
+    echo "== shfmt =="
+    git ls-files '*.sh' | xargs shfmt -d -i 2
+    echo "== docker compose config =="
+    for dir in adguard immich leafwiki monitoring stirling-pdf; do
+        [ -f "$dir/docker-compose.yml" ] || continue
+        created_env=0
+        if [ -f "$dir/.env.example" ] && [ ! -f "$dir/.env" ]; then
+            cp "$dir/.env.example" "$dir/.env"
+            created_env=1
+        fi
+        (cd "$dir" && docker compose config -q)
+        [ "$created_env" -eq 1 ] && rm "$dir/.env"
+    done
+    echo "== gitleaks =="
+    gitleaks detect --source . -v
+    echo "All checks passed."
+
 # SSH into a host (e.g. `just ssh pve`, `just ssh immich`)
 ssh target="pve":
     #!/usr/bin/env bash
@@ -184,6 +214,7 @@ pull:
     ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /opt/alloy/config.alloy" > monitoring/alloy-native.alloy
     ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /etc/systemd/system/alloy.service" > monitoring/alloy-native.service
 
+    just fmt
     echo "Done. Run 'git diff' to see what changed."
 
 # Push Immich configs to the host

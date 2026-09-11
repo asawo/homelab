@@ -4,19 +4,20 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 
 ## Network
 
-| Host | DNS | Role |
-|------|-----|------|
-| pve | pve.lan | Proxmox hypervisor |
-| adguard | adguard.home | DNS + ad blocking (LXC 107) |
-| monitoring | monitoring.home | Metrics, logs, uptime, alerting (LXC 108) |
-| immich | photos.home | Photo management (LXC 101) |
-| stirling-pdf | pdf.home | PDF tools (LXC 103) |
-| filebrowser | nas.home | File browser (LXC 105) |
-| leafwiki | wiki.home | Wiki (LXC 106) |
+| Host         | DNS             | Role                                      |
+| ------------ | --------------- | ----------------------------------------- |
+| pve          | pve.lan         | Proxmox hypervisor                        |
+| adguard      | adguard.home    | DNS + ad blocking (LXC 107)               |
+| monitoring   | monitoring.home | Metrics, logs, uptime, alerting (LXC 108) |
+| immich       | photos.home     | Photo management (LXC 101)                |
+| stirling-pdf | pdf.home        | PDF tools (LXC 103)                       |
+| filebrowser  | nas.home        | File browser (LXC 105)                    |
+| leafwiki     | wiki.home       | Wiki (LXC 106)                            |
 
 ## Services
 
 ### Proxmox
+
 - LXC container configs, network interfaces, and fstab
 - Storage: `local` (dir) + `local-lvm` (lvmthin) + USB DAS (2x WD Red 1TB)
 - Nightly borg backup from `/mnt/storage` to `/mnt/backup` at 3am
@@ -25,27 +26,32 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
   - Its own ntfy alerting and auto-remediation are unchanged and independent of `monitoring/`
 
 ### Immich (CT 101)
+
 - Docker Compose with OpenVINO ML acceleration and GPU passthrough
 - `.env` is gitignored (contains DB password) — see `.env.example` for template
 - Built-in Prometheus metrics enabled (`IMMICH_TELEMETRY_INCLUDE=all`, ports 8081/8082 on the LAN, same trust model as every other exposed port here); cAdvisor + Alloy sidecars added for observability
 
 ### Stirling PDF (CT 103)
+
 - Docker Compose running Stirling PDF for PDF manipulation tools
 - File storage at `/mnt/storage/files/NAS/stirling-pdf` on the DAS
 - cAdvisor + Alloy sidecars added for observability — its own `/actuator/prometheus` endpoint is Enterprise-license-gated, so this is container-stats-only
 
 ### FileBrowser Quantum (CT 105)
+
 - Web-based file browser for the DAS
 - Serves `/mnt/storage/files` on port 8080
 - Journald forwarded to the central Loki via a native Grafana Alloy install (standalone binary + systemd unit, not Docker — see Monitoring section) (no app-level metrics support)
 
 ### LeafWiki (CT 106)
+
 - Lightweight self-hosted wiki with Markdown stored on disk
 - Web UI on port 8080
 - `.env` is gitignored (contains JWT secret and admin password) — see `.env.example` for template
 - Journald forwarded to the central Loki via a native Grafana Alloy install (standalone binary + systemd unit, not Docker — see Monitoring section) (no app-level metrics support)
 
 ### AdGuard Home (CT 107)
+
 - Docker Compose, DNS on port 53 (tcp+udp) and web UI on port 3000
 - The tailnet's DNS resolver (Tailscale Global nameserver)
 - `adguard/conf/AdGuardHome.yaml` is gitignored (contains admin password hash) — recreated via the setup wizard on first run
@@ -53,6 +59,7 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 - Upstream DNS: Cloudflare + Quad9 (unfiltered) + Google over DoH, `parallel` mode, AdGuard's own unfiltered DoH as `fallback_dns` — moved off plain UDP/single-provider (Cloudflare-only, `load_balance`) after diagnosing recurring 20s UDP timeouts stalling queries
 
 ### Monitoring (CT 108)
+
 - Docker Compose: Prometheus, Grafana, Loki, Alertmanager, `prometheus-pve-exporter` (agentless host + per-CT metrics via the Proxmox API), `blackbox_exporter` (HTTP uptime checks), and an AdGuard metrics exporter
 - In scope for metrics/uptime: Immich, Stirling PDF, FileBrowser, LeafWiki, AdGuard, and the host itself
 - Logs: the 3 Docker-based LXCs (Immich, Stirling PDF, AdGuard) ship container logs straight to Loki via a per-container Alloy sidecar (`loki.source.docker`); FileBrowser and LeafWiki ship journald straight to Loki via a native Alloy install (`monitoring/alloy-native.alloy`/`.service`, standalone binary, no Docker). No central relay — every source pushes directly to Loki

@@ -72,9 +72,7 @@
         "orientation": "horizontal",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -167,10 +165,7 @@
       "id": 2,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
+          "calcs": ["lastNotNull", "max"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -263,9 +258,7 @@
               "id": "byNames",
               "options": {
                 "mode": "exclude",
-                "names": [
-                  "http://adguard.home:80"
-                ],
+                "names": ["http://adguard.home:80"],
                 "prefix": "All except:",
                 "readOnly": true
               }
@@ -321,10 +314,7 @@
   "preload": false,
   "refresh": "30s",
   "schemaVersion": 40,
-  "tags": [
-    "homelab",
-    "blackbox-exporter"
-  ],
+  "tags": ["homelab", "blackbox-exporter"],
   "templating": {
     "list": []
   },
