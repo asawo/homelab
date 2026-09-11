@@ -1,10 +1,7 @@
 {
   "uid": "logs-overview",
   "title": "Logs Overview",
-  "tags": [
-    "homelab",
-    "loki"
-  ],
+  "tags": ["homelab", "loki"],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
@@ -73,9 +70,7 @@
         "legend": {
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": [
-            "sum"
-          ]
+          "calcs": ["sum"]
         },
         "tooltip": {
           "mode": "multi"
@@ -121,23 +116,48 @@
         "overrides": [
           {
             "matcher": { "id": "byName", "options": "critical" },
-            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "dark-red" } }]
+            "properties": [
+              {
+                "id": "color",
+                "value": { "mode": "fixed", "fixedColor": "dark-red" }
+              }
+            ]
           },
           {
             "matcher": { "id": "byName", "options": "error" },
-            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+            "properties": [
+              {
+                "id": "color",
+                "value": { "mode": "fixed", "fixedColor": "red" }
+              }
+            ]
           },
           {
             "matcher": { "id": "byName", "options": "warning" },
-            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+            "properties": [
+              {
+                "id": "color",
+                "value": { "mode": "fixed", "fixedColor": "orange" }
+              }
+            ]
           },
           {
             "matcher": { "id": "byName", "options": "info" },
-            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }]
+            "properties": [
+              {
+                "id": "color",
+                "value": { "mode": "fixed", "fixedColor": "green" }
+              }
+            ]
           },
           {
             "matcher": { "id": "byName", "options": "debug" },
-            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+            "properties": [
+              {
+                "id": "color",
+                "value": { "mode": "fixed", "fixedColor": "blue" }
+              }
+            ]
           }
         ]
       },
@@ -145,9 +165,7 @@
         "legend": {
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": [
-            "sum"
-          ]
+          "calcs": ["sum"]
         },
         "tooltip": {
           "mode": "multi"

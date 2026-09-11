@@ -5,7 +5,7 @@ services:
     container_name: stirling_pdf
     image: stirlingtools/stirling-pdf:latest
     ports:
-      - '8080:8080'
+      - "8080:8080"
     volumes:
       - ./training-data:/usr/share/tessdata
       - ./configs:/configs
@@ -30,7 +30,7 @@ services:
     container_name: stirling_cadvisor
     image: ghcr.io/google/cadvisor:v0.60.5
     ports:
-      - '9280:8080'
+      - "9280:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -61,7 +61,13 @@ services:
       - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy-data:/var/lib/alloy/data
-    command: ["run", "--server.http.listen-addr=127.0.0.1:12345", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
+    command:
+      [
+        "run",
+        "--server.http.listen-addr=127.0.0.1:12345",
+        "--storage.path=/var/lib/alloy/data",
+        "/etc/alloy/config.alloy",
+      ]
     mem_limit: 300m
     restart: always
 

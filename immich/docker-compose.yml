@@ -25,9 +25,9 @@ services:
     env_file:
       - .env
     ports:
-      - '2283:2283'
-      - '${IMMICH_API_METRICS_PORT:-8081}:${IMMICH_API_METRICS_PORT:-8081}'
-      - '${IMMICH_MICROSERVICES_METRICS_PORT:-8082}:${IMMICH_MICROSERVICES_METRICS_PORT:-8082}'
+      - "2283:2283"
+      - "${IMMICH_API_METRICS_PORT:-8081}:${IMMICH_API_METRICS_PORT:-8081}"
+      - "${IMMICH_MICROSERVICES_METRICS_PORT:-8082}:${IMMICH_MICROSERVICES_METRICS_PORT:-8082}"
     depends_on:
       - redis
       - database
@@ -52,7 +52,7 @@ services:
     restart: always
     healthcheck:
       disable: false
-  
+
   redis:
     container_name: immich_redis
     image: docker.io/valkey/valkey:9@sha256:3b55fbaa0cd93cf0d9d961f405e4dfcc70efe325e2d84da207a0a8e6d8fde4f9
@@ -67,7 +67,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_DB: ${DB_DATABASE_NAME}
-      POSTGRES_INITDB_ARGS: '--data-checksums'
+      POSTGRES_INITDB_ARGS: "--data-checksums"
       # Uncomment the DB_STORAGE_TYPE: 'HDD' var if your database isn't stored on SSDs
       # DB_STORAGE_TYPE: 'HDD'
     volumes:
@@ -90,7 +90,7 @@ services:
     container_name: immich_cadvisor
     image: ghcr.io/google/cadvisor:v0.60.5
     ports:
-      - '9280:8080'
+      - "9280:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -128,7 +128,13 @@ services:
       - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy-data:/var/lib/alloy/data
-    command: ["run", "--server.http.listen-addr=127.0.0.1:12345", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
+    command:
+      [
+        "run",
+        "--server.http.listen-addr=127.0.0.1:12345",
+        "--storage.path=/var/lib/alloy/data",
+        "/etc/alloy/config.alloy",
+      ]
     mem_limit: 300m
     restart: always
 
