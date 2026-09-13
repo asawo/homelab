@@ -1,9 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# Run inside CT 109 after container creation
-# Installs Docker + Tailscale, then joins the tailnet (run `tailscale up` manually after this)
-
 apt-get update && apt-get install -y ca-certificates curl gnupg
 
 install -m 0755 -d /etc/apt/keyrings
