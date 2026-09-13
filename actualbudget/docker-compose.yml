@@ -9,13 +9,7 @@ services:
     volumes:
       - ./data:/data
     restart: always
-
-  # Per-container resource metrics -- Actual Budget has no built-in
-  # Prometheus endpoint, so this is metrics-only coverage (same situation as
-  # stirling-pdf/docker-compose.yml). v0.60.5 (registry moved to ghcr.io as
-  # of v0.53.0) -- see immich/docker-compose.yml's cadvisor service for why
-  # v0.49.1 silently reported zero per-container metrics under Docker 29's
-  # containerd-snapshotter storage.
+  
   cadvisor:
     container_name: actualbudget_cadvisor
     image: ghcr.io/google/cadvisor:v0.60.5
@@ -33,15 +27,6 @@ services:
     mem_limit: 200m
     restart: always
 
-  # Ships this LXC's Docker container logs to the central Loki. This LXC's
-  # own journald (as opposed to its Docker containers) isn't currently
-  # shipped anywhere -- out of scope for now, see monitoring/alloy-
-  # native.alloy's comment for why the journald-shipping design changed.
-  #
-  # Explicit `dns:` pointing straight at AdGuard -- see immich/docker-
-  # compose.yml's alloy service for why Docker's own host-resolv.conf-based
-  # guess (fooled by Tailscale's unreachable-from-containers 100.100.100.100)
-  # isn't reliable here.
   alloy:
     container_name: actualbudget_alloy
     image: grafana/alloy:v1.19.2
