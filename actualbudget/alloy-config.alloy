@@ -1,20 +1,7 @@
-// Docker-log-source only -- see immich/alloy-config.alloy for why, including
-// the shared `host` label name and the "unknown" fallback bucket. Actual
-// Budget's log format hasn't been characterized against a live instance yet,
-// so unlike stirling-pdf/alloy-config.alloy no level-extraction stage is
-// attempted here -- logs ship as-is and fall into Loki's default "unknown"
-// level bucket until that's verified.
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
 }
 
-// Drop cadvisor's own glog-style stdout and this Alloy instance's own
-// key=value control-plane logs -- same noise-filtering rationale as
-// adguard/alloy-config.alloy (cadvisor's data already reaches Prometheus as
-// metrics). Also extract the container name into its own `container` label
-// (same as immich/alloy-config.alloy) so Explore can filter by service --
-// only "actualbudget" survives the drop rule, but the label still matters
-// since Loki derives service_name from it, replacing "unknown_service".
 discovery.relabel "filtered" {
   targets = discovery.docker.containers.targets
 
