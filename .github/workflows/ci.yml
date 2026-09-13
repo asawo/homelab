@@ -23,7 +23,7 @@ jobs:
       - name: Validate docker-compose files
         run: |
           set -euo pipefail
-          for dir in adguard immich leafwiki monitoring stirling-pdf; do
+          for dir in actualbudget adguard immich leafwiki monitoring stirling-pdf; do
             [ -f "$dir/docker-compose.yml" ] || continue
             echo "== $dir =="
             created_env=0
