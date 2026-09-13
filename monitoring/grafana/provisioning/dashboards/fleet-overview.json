@@ -58,7 +58,7 @@
       },
       "targets": [
         {
-          "expr": "pve_up{id=~\"lxc/10[1235-7]\"} * on(id) group_left(name) pve_guest_info{id=~\"lxc/10[1235-7]\"}",
+          "expr": "pve_up{id=~\"lxc/10[1235679]\"} * on(id) group_left(name) pve_guest_info{id=~\"lxc/10[1235679]\"}",
           "legendFormat": "{{name}}",
           "refId": "A",
           "datasource": {
@@ -114,7 +114,7 @@
       },
       "targets": [
         {
-          "expr": "pve_cpu_usage_ratio{id=~\"lxc/10[1235-7]\"} * on(id) group_left(name) pve_guest_info{id=~\"lxc/10[1235-7]\"} * 100",
+          "expr": "pve_cpu_usage_ratio{id=~\"lxc/10[1235679]\"} * on(id) group_left(name) pve_guest_info{id=~\"lxc/10[1235679]\"} * 100",
           "legendFormat": "{{name}}",
           "refId": "A",
           "datasource": {
@@ -170,7 +170,7 @@
       },
       "targets": [
         {
-          "expr": "(pve_memory_usage_bytes{id=~\"lxc/10[1235-7]\"} / pve_memory_size_bytes{id=~\"lxc/10[1235-7]\"}) * on(id) group_left(name) pve_guest_info{id=~\"lxc/10[1235-7]\"} * 100",
+          "expr": "(pve_memory_usage_bytes{id=~\"lxc/10[1235679]\"} / pve_memory_size_bytes{id=~\"lxc/10[1235679]\"}) * on(id) group_left(name) pve_guest_info{id=~\"lxc/10[1235679]\"} * 100",
           "legendFormat": "{{name}}",
           "refId": "A",
           "datasource": {
@@ -226,7 +226,7 @@
       },
       "targets": [
         {
-          "expr": "(pve_disk_usage_bytes{id=~\"lxc/10[1235-7]\"} / pve_disk_size_bytes{id=~\"lxc/10[1235-7]\"}) * on(id) group_left(name) pve_guest_info{id=~\"lxc/10[1235-7]\"} * 100",
+          "expr": "(pve_disk_usage_bytes{id=~\"lxc/10[1235679]\"} / pve_disk_size_bytes{id=~\"lxc/10[1235679]\"}) * on(id) group_left(name) pve_guest_info{id=~\"lxc/10[1235679]\"} * 100",
           "legendFormat": "{{name}}",
           "refId": "A",
           "datasource": {

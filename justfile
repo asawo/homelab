@@ -5,6 +5,7 @@ filebrowser_ct := "105"
 leafwiki_ct := "106"
 adguard_ct := "107"
 monitoring_ct := "108"
+actualbudget_ct := "109"
 
 # List available commands
 default:
@@ -26,7 +27,7 @@ check:
     echo "== shfmt =="
     git ls-files '*.sh' | xargs shfmt -d -i 2
     echo "== docker compose config =="
-    for dir in adguard immich leafwiki monitoring stirling-pdf; do
+    for dir in actualbudget adguard immich leafwiki monitoring stirling-pdf; do
         [ -f "$dir/docker-compose.yml" ] || continue
         created_env=0
         if [ -f "$dir/.env.example" ] && [ ! -f "$dir/.env" ]; then
@@ -51,6 +52,7 @@ ssh target="pve":
         leafwiki) ssh -t {{ pve }} "pct enter {{ leafwiki_ct }}" ;;
         adguard)  ssh -t {{ pve }} "pct enter {{ adguard_ct }}" ;;
         monitoring) ssh -t {{ pve }} "pct enter {{ monitoring_ct }}" ;;
+        actualbudget) ssh -t {{ pve }} "pct enter {{ actualbudget_ct }}" ;;
         *)      echo "Unknown target: {{ target }}"; exit 1 ;;
     esac
 
@@ -141,6 +143,10 @@ diff:
         check_diff_env ".env" monitoring/.env "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/.env"
     fi
 
+    echo "Actual Budget"
+    check_diff "docker-compose.yml" "actualbudget/docker-compose.yml" "pct exec {{ actualbudget_ct }} -- cat /opt/actualbudget/docker-compose.yml"
+    check_diff "alloy-config.alloy" "actualbudget/alloy-config.alloy" "pct exec {{ actualbudget_ct }} -- cat /opt/actualbudget/alloy-config.alloy"
+
     echo "Native Alloy (FileBrowser, LeafWiki)"
     for ct in {{ filebrowser_ct }} {{ leafwiki_ct }}; do
         check_diff "CT $ct config.alloy" "monitoring/alloy-native.alloy" "pct exec $ct -- cat /opt/alloy/config.alloy"
@@ -169,6 +175,7 @@ pull:
     ssh {{ pve }} "pct config {{ filebrowser_ct }}" > proxmox/ct-105-filebrowser.conf
     ssh {{ pve }} "pct config {{ leafwiki_ct }}" > proxmox/ct-106-leafwiki.conf
     ssh {{ pve }} "pct config {{ adguard_ct }}" > proxmox/ct-107-adguard.conf
+    ssh {{ pve }} "pct config {{ actualbudget_ct }}" > proxmox/ct-109-actualbudget.conf
 
     echo "Pulling Immich configs..."
     ssh {{ pve }} "pct exec {{ immich_ct }} -- cat /opt/immich/docker-compose.yml" > immich/docker-compose.yml
@@ -209,6 +216,10 @@ pull:
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/grafana/provisioning/dashboards/logs-overview.json" > monitoring/grafana/provisioning/dashboards/logs-overview.json
     tmp=$(mktemp); ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/.env" > "$tmp" 2>/dev/null && [ -s "$tmp" ] && mv "$tmp" monitoring/.env || { echo "  Skipped monitoring/.env (not found or unreachable) -- left unchanged"; rm -f "$tmp"; }
     ssh {{ pve }} "pct config {{ monitoring_ct }}" > proxmox/ct-108-monitoring.conf
+
+    echo "Pulling Actual Budget configs..."
+    ssh {{ pve }} "pct exec {{ actualbudget_ct }} -- cat /opt/actualbudget/docker-compose.yml" > actualbudget/docker-compose.yml
+    ssh {{ pve }} "pct exec {{ actualbudget_ct }} -- cat /opt/actualbudget/alloy-config.alloy" > actualbudget/alloy-config.alloy
 
     echo "Pulling native Alloy configs..."
     ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /opt/alloy/config.alloy" > monitoring/alloy-native.alloy
@@ -303,6 +314,17 @@ push-leafwiki:
     ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- bash -c 'systemctl daemon-reload && systemctl restart leafwiki'"
     echo "Done."
 
+# Push Actual Budget configs to the host
+push-actualbudget:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Pushing Actual Budget configs..."
+    echo "  docker-compose.yml"
+    cat actualbudget/docker-compose.yml | ssh {{ pve }} "pct exec {{ actualbudget_ct }} -- tee /opt/actualbudget/docker-compose.yml > /dev/null"
+    echo "  alloy-config.alloy"
+    cat actualbudget/alloy-config.alloy | ssh {{ pve }} "pct exec {{ actualbudget_ct }} -- tee /opt/actualbudget/alloy-config.alloy > /dev/null"
+    echo "Done. Restart with: just restart-actualbudget"
+
 # Push monitoring stack to CT 108 + native Alloy config to FileBrowser/LeafWiki
 push-monitoring:
     #!/usr/bin/env bash
@@ -356,6 +378,10 @@ restart-stirling:
 restart-adguard:
     ssh {{ pve }} "pct exec {{ adguard_ct }} -- bash -c 'cd /opt/adguard && docker compose down && docker compose up -d'"
 
+# Restart Actual Budget on the host
+restart-actualbudget:
+    ssh {{ pve }} "pct exec {{ actualbudget_ct }} -- bash -c 'cd /opt/actualbudget && docker compose down && docker compose up -d'"
+
 # Tail logs (e.g. `just logs immich`, `just logs backup`)
 logs target="immich":
     #!/usr/bin/env bash
@@ -368,7 +394,8 @@ logs target="immich":
         backup)    ssh {{ pve }} "tail -f /var/log/borg-backup.log" ;;
         storage-check) ssh {{ pve }} "tail -f /var/log/storage-check.log" ;;
         monitoring) ssh {{ pve }} "pct exec {{ monitoring_ct }} -- docker compose -f /opt/monitoring/docker-compose.yml logs -f --tail 100" ;;
-        *)         echo "Unknown target: {{ target }} (try: immich, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring)"; exit 1 ;;
+        actualbudget) ssh {{ pve }} "pct exec {{ actualbudget_ct }} -- docker compose -f /opt/actualbudget/docker-compose.yml logs -f --tail 100" ;;
+        *)         echo "Unknown target: {{ target }} (try: immich, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring, actualbudget)"; exit 1 ;;
     esac
 
 # Show container status
@@ -383,12 +410,12 @@ check-storage:
 update-tailscale:
     #!/usr/bin/env bash
     set -e
-    for ct in {{ immich_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do
+    for ct in {{ immich_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }} {{ actualbudget_ct }}; do
         echo "=== CT $ct ==="
         ssh {{ pve }} "pct exec $ct -- bash -c 'apt-get update -qq && apt-get install --only-upgrade -y tailscale'"
     done
     echo "Done. Current versions:"
-    for ct in {{ immich_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }}; do
+    for ct in {{ immich_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }} {{ actualbudget_ct }}; do
         echo -n "CT $ct: "
         ssh {{ pve }} "pct exec $ct -- tailscale version | head -1"
     done

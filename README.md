@@ -13,6 +13,7 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 | stirling-pdf | pdf.home        | PDF tools (LXC 103)                       |
 | filebrowser  | nas.home        | File browser (LXC 105)                    |
 | leafwiki     | wiki.home       | Wiki (LXC 106)                            |
+| actualbudget | budget.home     | Personal finance / budgeting (LXC 109)    |
 
 ## Services
 
@@ -58,11 +59,17 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 - cAdvisor + Alloy sidecars added for observability; DNS query/blocked/latency stats scraped by a dedicated exporter running centrally in `monitoring/` (AdGuard has no built-in Prometheus endpoint)
 - Upstream DNS: Cloudflare + Quad9 (unfiltered) + Google over DoH, `parallel` mode, AdGuard's own unfiltered DoH as `fallback_dns` — moved off plain UDP/single-provider (Cloudflare-only, `load_balance`) after diagnosing recurring 20s UDP timeouts stalling queries
 
+### Actual Budget (CT 109)
+
+- Docker Compose running the official `actualbudget/actual-server` image
+- Web UI on port 5006, data persisted at `/opt/actualbudget/data` (SQLite, not on the DAS — no large-file storage need)
+- cAdvisor + Alloy sidecars added for observability — Actual Budget has no built-in Prometheus endpoint, so this is container-stats-only (log level extraction not yet tuned — see `actualbudget/alloy-config.alloy`)
+
 ### Monitoring (CT 108)
 
 - Docker Compose: Prometheus, Grafana, Loki, Alertmanager, `prometheus-pve-exporter` (agentless host + per-CT metrics via the Proxmox API), `blackbox_exporter` (HTTP uptime checks), and an AdGuard metrics exporter
-- In scope for metrics/uptime: Immich, Stirling PDF, FileBrowser, LeafWiki, AdGuard, and the host itself
-- Logs: the 3 Docker-based LXCs (Immich, Stirling PDF, AdGuard) ship container logs straight to Loki via a per-container Alloy sidecar (`loki.source.docker`); FileBrowser and LeafWiki ship journald straight to Loki via a native Alloy install (`monitoring/alloy-native.alloy`/`.service`, standalone binary, no Docker). No central relay — every source pushes directly to Loki
+- In scope for metrics/uptime: Immich, Stirling PDF, FileBrowser, LeafWiki, AdGuard, Actual Budget, and the host itself
+- Logs: the 4 Docker-based LXCs (Immich, Stirling PDF, AdGuard, Actual Budget) ship container logs straight to Loki via a per-container Alloy sidecar (`loki.source.docker`); FileBrowser and LeafWiki ship journald straight to Loki via a native Alloy install (`monitoring/alloy-native.alloy`/`.service`, standalone binary, no Docker). No central relay — every source pushes directly to Loki
   - The host itself is deliberately **not** in scope for log shipping — it's the bare Proxmox hypervisor, and installing anything extra directly on it (even a lightweight native binary) was ruled out; `check-storage.sh` remains its only monitoring
   - An earlier design used `systemd-journal-remote`/`-upload` (part of systemd itself, near-zero footprint) to fan the 4 journald-only sources into one shared receiver on CT 108. Abandoned after hitting an unresolved upstream `systemd-journal-remote`/`libmicrohttpd` chunked-transfer-encoding bug that corrupted the stream and crash-looped the client — see git history for the investigation
 - Alerting goes to ntfy.sh via a webhook bridge, reusing the same `NTFY_TOPIC` convention as `proxmox/check-storage.env` — covers container/host-down, resource saturation, and failed HTTP checks. `check-storage.sh`'s own alerting and auto-remediation are separate and untouched
@@ -84,8 +91,9 @@ just push-adguard      # Push AdGuard Home docker-compose
 just push-filebrowser  # Push FileBrowser configs and restart service
 just push-leafwiki     # Push LeafWiki configs and restart service
 just push-monitoring   # Push monitoring stack to CT 108 + native Alloy config to FileBrowser/LeafWiki
-just ssh [target]      # SSH into pve, immich, stirling, filebrowser, leafwiki, adguard, or monitoring
-just logs [target]     # Tail logs (immich, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring)
+just push-actualbudget # Push Actual Budget docker-compose
+just ssh [target]      # SSH into pve, immich, stirling, filebrowser, leafwiki, adguard, monitoring, or actualbudget
+just logs [target]     # Tail logs (immich, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring, actualbudget)
 just status            # Show container status
 just check-storage     # Manually run the storage health check
 just update-tailscale  # Upgrade Tailscale on all LXCs that have it installed
@@ -93,6 +101,7 @@ just restart-immich    # Restart the Immich docker stack
 just restart-stirling  # Restart the Stirling PDF container
 just restart-adguard   # Restart the AdGuard Home container
 just restart-monitoring # Restart the monitoring docker stack
+just restart-actualbudget # Restart the Actual Budget container
 ```
 
 ## Sensitive files

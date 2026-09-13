@@ -9,7 +9,7 @@
 groups:
   - name: monitoring
     rules:
-      # Scoped to the in-scope LXCs only (101, 103, 105-107). Deliberately
+      # Scoped to the in-scope LXCs only (101, 103, 105-107, 109). Deliberately
       # excludes the host itself (id="node/pve"): CT
       # 108, which runs this entire Prometheus/Alertmanager stack, is an LXC
       # on that same host, so a real host outage takes the alerting pipeline
@@ -17,7 +17,7 @@ groups:
       # actual host-down event needs an external observer (e.g. a hosted
       # heartbeat/dead-man's-switch), not a rule here.
       - alert: TargetDown
-        expr: pve_up{id=~"lxc/10[135-7]"} == 0
+        expr: pve_up{id=~"lxc/10[135679]"} == 0
         for: 2m
         labels:
           severity: critical
@@ -77,7 +77,7 @@ groups:
       # here for the same reason TargetDown above excludes the host: this
       # stack can't notify about its own host being down.
       - alert: PveExporterMetricsMissing
-        expr: absent(pve_up{id="lxc/101"}) or absent(pve_up{id="lxc/103"}) or absent(pve_up{id="lxc/105"}) or absent(pve_up{id="lxc/106"}) or absent(pve_up{id="lxc/107"})
+        expr: absent(pve_up{id="lxc/101"}) or absent(pve_up{id="lxc/103"}) or absent(pve_up{id="lxc/105"}) or absent(pve_up{id="lxc/106"}) or absent(pve_up{id="lxc/107"}) or absent(pve_up{id="lxc/109"})
         for: 5m
         labels:
           severity: critical
@@ -85,7 +85,7 @@ groups:
           summary: "pve-exporter is not reporting pve_up for id {{ $labels.id }}"
 
       - alert: BlackboxProbeMetricsMissing
-        expr: absent(probe_success{instance="http://photos.home:2283"}) or absent(probe_success{instance="http://pdf.home:8080/api/v1/info/status"}) or absent(probe_success{instance="http://nas.home:8080"}) or absent(probe_success{instance="http://wiki.home:8080"}) or absent(probe_success{instance="http://adguard.home:80"}) or absent(probe_success{instance="192.168.11.207:53"})
+        expr: absent(probe_success{instance="http://photos.home:2283"}) or absent(probe_success{instance="http://pdf.home:8080/api/v1/info/status"}) or absent(probe_success{instance="http://nas.home:8080"}) or absent(probe_success{instance="http://wiki.home:8080"}) or absent(probe_success{instance="http://adguard.home:80"}) or absent(probe_success{instance="http://budget.home:5006"}) or absent(probe_success{instance="192.168.11.207:53"})
         for: 5m
         labels:
           severity: critical
@@ -104,7 +104,7 @@ groups:
       # filesystem, so node/pve's own disk usage already covers it without
       # a separate term.
       - alert: HighCpuUsage
-        expr: pve_cpu_usage_ratio{id=~"node/pve|lxc/10[135-7]"} > 0.9
+        expr: pve_cpu_usage_ratio{id=~"node/pve|lxc/10[135679]"} > 0.9
         for: 10m
         labels:
           severity: warning
@@ -112,7 +112,7 @@ groups:
           summary: "{{ $labels.id }} CPU usage above 90% for 10m"
 
       - alert: HighMemoryUsage
-        expr: (pve_memory_usage_bytes{id=~"node/pve|lxc/10[135-7]"} / pve_memory_size_bytes{id=~"node/pve|lxc/10[135-7]"}) > 0.9
+        expr: (pve_memory_usage_bytes{id=~"node/pve|lxc/10[135679]"} / pve_memory_size_bytes{id=~"node/pve|lxc/10[135679]"}) > 0.9
         for: 10m
         labels:
           severity: warning
@@ -120,7 +120,7 @@ groups:
           summary: "{{ $labels.id }} memory usage above 90% for 10m"
 
       - alert: RootDiskAlmostFull
-        expr: (pve_disk_usage_bytes{id=~"node/pve|lxc/10[135-7]"} / pve_disk_size_bytes{id=~"node/pve|lxc/10[135-7]"}) > 0.85
+        expr: (pve_disk_usage_bytes{id=~"node/pve|lxc/10[135679]"} / pve_disk_size_bytes{id=~"node/pve|lxc/10[135679]"}) > 0.85
         for: 15m
         labels:
           severity: warning

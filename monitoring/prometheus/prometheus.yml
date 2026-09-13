@@ -43,7 +43,7 @@ scrape_configs:
       - targets: ["192.168.11.201:8082"]
         labels: { service: immich-microservices }
 
-  # Per-container resource metrics for the 3 Docker-based LXCs only.
+  # Per-container resource metrics for the 4 Docker-based LXCs only.
   - job_name: cadvisor
     static_configs:
       - targets: ["192.168.11.201:9280"]
@@ -52,6 +52,8 @@ scrape_configs:
         labels: { lxc: stirling-pdf }
       - targets: ["192.168.11.207:9280"]
         labels: { lxc: adguard }
+      - targets: ["192.168.11.209:9280"]
+        labels: { lxc: actualbudget }
 
   - job_name: adguard
     static_configs:
@@ -70,6 +72,7 @@ scrape_configs:
           - http://nas.home:8080 # filebrowser
           - http://wiki.home:8080 # leafwiki
           - http://adguard.home:80 # adguard -- README says 3000, but the live container actually listens on 80; flag the doc drift separately
+          - http://budget.home:5006 # actualbudget
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

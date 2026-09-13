@@ -1,0 +1,46 @@
+name: actualbudget
+
+services:
+  actualbudget:
+    container_name: actualbudget
+    image: actualbudget/actual-server:latest
+    ports:
+      - "5006:5006"
+    volumes:
+      - ./data:/data
+    restart: always
+
+  cadvisor:
+    container_name: actualbudget_cadvisor
+    image: ghcr.io/google/cadvisor:v0.60.5
+    ports:
+      - "9280:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+      - /etc/machine-id:/etc/machine-id:ro
+    mem_limit: 200m
+    restart: always
+
+  alloy:
+    container_name: actualbudget_alloy
+    image: grafana/alloy:v1.19.2
+    dns:
+      - 192.168.11.207
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    command:
+      - "run"
+      - "--server.http.listen-addr=127.0.0.1:12345"
+      - "--storage.path=/var/lib/alloy/data"
+      - "/etc/alloy/config.alloy"
+    mem_limit: 150m
+    restart: always
+
+volumes:
+  alloy-data:
