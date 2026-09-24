@@ -73,6 +73,7 @@ scrape_configs:
           - http://wiki.home:8080 # leafwiki
           - http://adguard.home:80 # adguard -- README says 3000, but the live container actually listens on 80; flag the doc drift separately
           - http://budget.home:5006 # actualbudget
+          - http://ha.home:80 # homeassistant
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
