@@ -85,7 +85,7 @@ groups:
           summary: "pve-exporter is not reporting pve_up for id {{ $labels.id }}"
 
       - alert: BlackboxProbeMetricsMissing
-        expr: absent(probe_success{instance="http://photos.home:2283"}) or absent(probe_success{instance="http://pdf.home:8080/api/v1/info/status"}) or absent(probe_success{instance="http://nas.home:8080"}) or absent(probe_success{instance="http://wiki.home:8080"}) or absent(probe_success{instance="http://adguard.home:80"}) or absent(probe_success{instance="http://budget.home:5006"}) or absent(probe_success{instance="192.168.11.207:53"})
+        expr: absent(probe_success{instance="http://photos.home:2283"}) or absent(probe_success{instance="http://pdf.home:8080/api/v1/info/status"}) or absent(probe_success{instance="http://nas.home:8080"}) or absent(probe_success{instance="http://wiki.home:8080"}) or absent(probe_success{instance="http://adguard.home:80"}) or absent(probe_success{instance="http://budget.home:5006"}) or absent(probe_success{instance="192.168.8.207:53"})
         for: 5m
         labels:
           severity: critical
