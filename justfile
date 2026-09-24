@@ -6,6 +6,7 @@ leafwiki_ct := "106"
 adguard_ct := "107"
 monitoring_ct := "108"
 actualbudget_ct := "109"
+ha_vm := "111"
 
 # List available commands
 default:
@@ -95,6 +96,8 @@ diff:
     check_diff "borg-backup.sh" proxmox/borg-backup.sh "cat /usr/local/bin/borg-backup.sh"
     check_diff "check-storage.sh" proxmox/check-storage.sh "cat /usr/local/bin/check-storage.sh"
     check_diff "crontab" proxmox/crontab "crontab -l"
+    check_diff "storage.cfg" proxmox/storage.cfg "cat /etc/pve/storage.cfg"
+    check_diff "jobs.cfg" proxmox/jobs.cfg "cat /etc/pve/jobs.cfg"
     if [ -f proxmox/check-storage.env ]; then
         check_diff "check-storage.env" proxmox/check-storage.env "cat /usr/local/etc/check-storage.env"
     fi
@@ -168,6 +171,8 @@ pull:
     ssh {{ pve }} "cat /usr/local/bin/borg-backup.sh" > proxmox/borg-backup.sh
     ssh {{ pve }} "cat /usr/local/bin/check-storage.sh" > proxmox/check-storage.sh
     ssh {{ pve }} "crontab -l" > proxmox/crontab
+    ssh {{ pve }} "cat /etc/pve/storage.cfg" > proxmox/storage.cfg
+    ssh {{ pve }} "cat /etc/pve/jobs.cfg" > proxmox/jobs.cfg
     tmp=$(mktemp); ssh {{ pve }} "cat /usr/local/etc/check-storage.env" > "$tmp" 2>/dev/null && [ -s "$tmp" ] && mv "$tmp" proxmox/check-storage.env || { echo "  Skipped proxmox/check-storage.env (not found or unreachable) -- left unchanged"; rm -f "$tmp"; }
     ssh {{ pve }} "pct config {{ immich_ct }}" > proxmox/ct-101-immich.conf
 
@@ -176,6 +181,7 @@ pull:
     ssh {{ pve }} "pct config {{ leafwiki_ct }}" > proxmox/ct-106-leafwiki.conf
     ssh {{ pve }} "pct config {{ adguard_ct }}" > proxmox/ct-107-adguard.conf
     ssh {{ pve }} "pct config {{ actualbudget_ct }}" > proxmox/ct-109-actualbudget.conf
+    ssh {{ pve }} "qm config {{ ha_vm }}" > proxmox/vm-111-homeassistant.conf
 
     echo "Pulling Immich configs..."
     ssh {{ pve }} "pct exec {{ immich_ct }} -- cat /opt/immich/docker-compose.yml" > immich/docker-compose.yml
@@ -262,6 +268,10 @@ push-pve:
     fi
     echo "  crontab"
     cat proxmox/crontab | ssh {{ pve }} "crontab -"
+    echo "  storage.cfg"
+    cat proxmox/storage.cfg | ssh {{ pve }} "tee /etc/pve/storage.cfg > /dev/null"
+    echo "  jobs.cfg"
+    cat proxmox/jobs.cfg | ssh {{ pve }} "tee /etc/pve/jobs.cfg > /dev/null"
     echo "Done. Network changes need: just ssh pve, then 'ifreload -a'"
 
 # Push Stirling PDF configs to the host
@@ -398,9 +408,9 @@ logs target="immich":
         *)         echo "Unknown target: {{ target }} (try: immich, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring, actualbudget)"; exit 1 ;;
     esac
 
-# Show container status
+# Show container and VM status
 status:
-    @ssh {{ pve }} "pct list"
+    @ssh {{ pve }} "pct list && echo && qm list"
 
 # Manually run the storage health check (normally runs every 5 min via cron)
 check-storage:

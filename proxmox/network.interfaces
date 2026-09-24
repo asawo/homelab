@@ -3,6 +3,7 @@ iface lo inet loopback
 
 iface nic0 inet manual
 	post-up ethtool --set-eee nic0 eee off || true
+	post-up ethtool -K nic0 tso off gso off || true
 
 auto vmbr0
 iface vmbr0 inet static
@@ -11,6 +12,7 @@ iface vmbr0 inet static
 	bridge-ports nic0
 	bridge-stp off
 	bridge-fd 0
+	post-up echo 0 > /sys/class/net/vmbr0/bridge/multicast_snooping
 
 iface nic1 inet manual
 
