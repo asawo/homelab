@@ -13,9 +13,8 @@ mkdir -p /mnt/storage/backups/leafwiki
 /usr/sbin/pct exec 106 -- systemctl start leafwiki
 
 # Create backup with date-based name
-# shellcheck disable=SC1083 # borg's own {now:...} placeholder syntax, not shell brace expansion
 borg create --compression zstd,3 \
-  /mnt/backup/borg-repo::{now:%Y-%m-%d} \
+  "/mnt/backup/borg-repo::{now:%Y-%m-%d}" \
   /mnt/storage
 
 # Prune old backups: keep 7 daily, 4 weekly, 6 monthly

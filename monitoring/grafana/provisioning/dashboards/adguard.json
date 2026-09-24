@@ -567,7 +567,7 @@
           "refId": "A"
         }
       ],
-      "description": "Personal devices only -- excludes homelab/infra clients (LAN 192.168.11.x, Docker bridge 172.18.x, and any AdGuard client named 'infra: *'). See the Internal / Infra Traffic row for that breakdown. The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts.",
+      "description": "Personal devices only -- excludes homelab/infra clients (LAN 192.168.8.x, Docker bridge 172.18.x, and any AdGuard client named 'infra: *'). See the Internal / Infra Traffic row for that breakdown. The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts.",
       "title": "Top Clients (rolling 24h)",
       "type": "piechart"
     },
@@ -1074,7 +1074,7 @@
           "interval": "1h"
         }
       ],
-      "description": "Personal devices only -- excludes homelab/infra clients (LAN 192.168.11.x, Docker bridge 172.18.x, and any AdGuard client named 'infra: *'). See the Internal / Infra Traffic row for that breakdown. The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts. This is AdGuard's own rolling-24h total (a moving sum), not a per-hour count -- resampled to one point/hour with linear interpolation so the hourly bucket rollover reads as a plain step instead of a smoothed spike.",
+      "description": "Personal devices only -- excludes homelab/infra clients (LAN 192.168.8.x, Docker bridge 172.18.x, and any AdGuard client named 'infra: *'). See the Internal / Infra Traffic row for that breakdown. The exporter does not remove label combinations that leave AdGuard's current top list, so results may include stale entries until the exporter restarts. This is AdGuard's own rolling-24h total (a moving sum), not a per-hour count -- resampled to one point/hour with linear interpolation so the hourly bucket rollover reads as a plain step instead of a smoothed spike.",
       "title": "Client Queries (rolling 24h)",
       "type": "timeseries"
     },
@@ -1672,7 +1672,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Sum of DNS query volume attributed to homelab/infra clients (LAN 192.168.11.x, Docker bridge 172.18.x, and AdGuard clients named 'infra: *') -- excluded from the personal-device panels above.",
+      "description": "Sum of DNS query volume attributed to homelab/infra clients (LAN 192.168.8.x, Docker bridge 172.18.x, and AdGuard clients named 'infra: *') -- excluded from the personal-device panels above.",
       "fieldConfig": {
         "defaults": {
           "color": {

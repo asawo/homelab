@@ -38,21 +38,21 @@ scrape_configs:
   # in immich/.env.
   - job_name: immich
     static_configs:
-      - targets: ["192.168.11.201:8081"]
+      - targets: ["192.168.8.201:8081"]
         labels: { service: immich-api }
-      - targets: ["192.168.11.201:8082"]
+      - targets: ["192.168.8.201:8082"]
         labels: { service: immich-microservices }
 
   # Per-container resource metrics for the 4 Docker-based LXCs only.
   - job_name: cadvisor
     static_configs:
-      - targets: ["192.168.11.201:9280"]
+      - targets: ["192.168.8.201:9280"]
         labels: { lxc: immich }
-      - targets: ["192.168.11.203:9280"]
+      - targets: ["192.168.8.203:9280"]
         labels: { lxc: stirling-pdf }
-      - targets: ["192.168.11.207:9280"]
+      - targets: ["192.168.8.207:9280"]
         labels: { lxc: adguard }
-      - targets: ["192.168.11.209:9280"]
+      - targets: ["192.168.8.209:9280"]
         labels: { lxc: actualbudget }
 
   - job_name: adguard
@@ -90,7 +90,7 @@ scrape_configs:
       module: [dns_internal]
     static_configs:
       - targets:
-          - 192.168.11.207:53
+          - 192.168.8.207:53
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
