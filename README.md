@@ -4,16 +4,17 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 
 ## Network
 
-| Host         | DNS             | Role                                      |
-| ------------ | --------------- | ----------------------------------------- |
-| pve          | pve.lan         | Proxmox hypervisor                        |
-| adguard      | adguard.home    | DNS + ad blocking (LXC 107)               |
-| monitoring   | monitoring.home | Metrics, logs, uptime, alerting (LXC 108) |
-| immich       | photos.home     | Photo management (LXC 101)                |
-| stirling-pdf | pdf.home        | PDF tools (LXC 103)                       |
-| filebrowser  | nas.home        | File browser (LXC 105)                    |
-| leafwiki     | wiki.home       | Wiki (LXC 106)                            |
-| actualbudget | budget.home     | Personal finance / budgeting (LXC 109)    |
+| Host          | DNS             | Role                                      |
+| ------------- | --------------- | ----------------------------------------- |
+| pve           | pve.lan         | Proxmox hypervisor                        |
+| adguard       | adguard.home    | DNS + ad blocking (LXC 107)               |
+| monitoring    | monitoring.home | Metrics, logs, uptime, alerting (LXC 108) |
+| immich        | photos.home     | Photo management (LXC 101)                |
+| stirling-pdf  | pdf.home        | PDF tools (LXC 103)                       |
+| filebrowser   | nas.home        | File browser (LXC 105)                    |
+| leafwiki      | wiki.home       | Wiki (LXC 106)                            |
+| actualbudget  | budget.home     | Personal finance / budgeting (LXC 109)    |
+| homeassistant | ha.home         | Home automation (VM 111)                  |
 
 ## Services
 
@@ -65,6 +66,13 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 - Web UI on port 5006, data persisted at `/opt/actualbudget/data` (SQLite, not on the DAS — no large-file storage need)
 - cAdvisor + Alloy sidecars added for observability — Actual Budget has no built-in Prometheus endpoint, so this is container-stats-only (log level extraction not yet tuned — see `actualbudget/alloy-config.alloy`)
 
+### Home Assistant (VM 111)
+
+- Home Assistant OS VM (q35/OVMF, 2 cores, 2 GB), only `qm config` is tracked here; HA's own config lives in HA and its backups
+- Nightly vzdump at 02:30 to `/mnt/storage/backups/vzdump` (keep 3), picked up by the 3am borg run
+- Matter-over-Thread via an SMLIGHT SLZB-06U (Ethernet, Thread RCP) and the OpenThread Border Router add-on
+- `vmbr0` has multicast snooping disabled so mDNS/Matter discovery reaches the VM
+
 ### Monitoring (CT 108)
 
 - Docker Compose: Prometheus, Grafana, Loki, Alertmanager, `prometheus-pve-exporter` (agentless host + per-CT metrics via the Proxmox API), `blackbox_exporter` (HTTP uptime checks), and an AdGuard metrics exporter
@@ -94,7 +102,7 @@ just push-monitoring   # Push monitoring stack to CT 108 + native Alloy config t
 just push-actualbudget # Push Actual Budget docker-compose
 just ssh [target]      # SSH into pve, immich, stirling, filebrowser, leafwiki, adguard, monitoring, or actualbudget
 just logs [target]     # Tail logs (immich, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring, actualbudget)
-just status            # Show container status
+just status            # Show container and VM status
 just check-storage     # Manually run the storage health check
 just update-tailscale  # Upgrade Tailscale on all LXCs that have it installed
 just restart-immich    # Restart the Immich docker stack
