@@ -11,6 +11,7 @@ iface vmbr0 inet static
 	bridge-ports nic0
 	bridge-stp off
 	bridge-fd 0
+	post-up echo 0 > /sys/class/net/vmbr0/bridge/multicast_snooping
 
 iface nic1 inet manual
 
