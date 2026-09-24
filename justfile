@@ -6,6 +6,7 @@ leafwiki_ct := "106"
 adguard_ct := "107"
 monitoring_ct := "108"
 actualbudget_ct := "109"
+ha_vm := "111"
 
 # List available commands
 default:
@@ -176,6 +177,7 @@ pull:
     ssh {{ pve }} "pct config {{ leafwiki_ct }}" > proxmox/ct-106-leafwiki.conf
     ssh {{ pve }} "pct config {{ adguard_ct }}" > proxmox/ct-107-adguard.conf
     ssh {{ pve }} "pct config {{ actualbudget_ct }}" > proxmox/ct-109-actualbudget.conf
+    ssh {{ pve }} "qm config {{ ha_vm }}" > proxmox/vm-111-homeassistant.conf
 
     echo "Pulling Immich configs..."
     ssh {{ pve }} "pct exec {{ immich_ct }} -- cat /opt/immich/docker-compose.yml" > immich/docker-compose.yml
@@ -398,9 +400,9 @@ logs target="immich":
         *)         echo "Unknown target: {{ target }} (try: immich, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring, actualbudget)"; exit 1 ;;
     esac
 
-# Show container status
+# Show container and VM status
 status:
-    @ssh {{ pve }} "pct list"
+    @ssh {{ pve }} "pct list && echo && qm list"
 
 # Manually run the storage health check (normally runs every 5 min via cron)
 check-storage:
