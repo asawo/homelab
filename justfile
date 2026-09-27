@@ -352,6 +352,23 @@ push-actualbudget:
     cat actualbudget/alloy-config.alloy | ssh {{ pve }} "pct exec {{ actualbudget_ct }} -- tee /opt/actualbudget/alloy-config.alloy > /dev/null"
     echo "Done. Restart with: just restart-actualbudget"
 
+# Push Home Assistant configuration.yaml to VM 111 (validated, rolled back if the config check fails)
+push-homeassistant:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ha() { ssh {{ pve }} "qm guest exec {{ ha_vm }} --timeout 120 -- $*" | {{ ha_agent }}; }
+    echo "Pushing Home Assistant configs..."
+    ha cp {{ ha_config }} {{ ha_config }}.prev
+    echo "  configuration.yaml"
+    cat homeassistant/configuration.yaml | ssh {{ pve }} "qm guest exec {{ ha_vm }} --pass-stdin 1 -- tee {{ ha_config }}" | {{ ha_agent }} > /dev/null
+    echo "Checking config..."
+    if ! ha docker exec hassio_cli ha core check; then
+        echo "Config check failed, restoring previous configuration.yaml"
+        ha mv {{ ha_config }}.prev {{ ha_config }}
+        exit 1
+    fi
+    echo "Done. Restart with: just restart-homeassistant"
+
 # Push monitoring stack to CT 108 + native Alloy config to FileBrowser/LeafWiki
 push-monitoring:
     #!/usr/bin/env bash
@@ -409,6 +426,10 @@ restart-adguard:
 restart-actualbudget:
     ssh {{ pve }} "pct exec {{ actualbudget_ct }} -- bash -c 'cd /opt/actualbudget && docker compose down && docker compose up -d'"
 
+# Restart Home Assistant Core on VM 111
+restart-homeassistant:
+    ssh {{ pve }} "qm guest exec {{ ha_vm }} --timeout 300 -- docker exec hassio_cli ha core restart" | {{ ha_agent }}
+
 # Tail logs (e.g. `just logs immich`, `just logs backup`)
 logs target="immich":
     #!/usr/bin/env bash
@@ -422,7 +443,8 @@ logs target="immich":
         storage-check) ssh {{ pve }} "tail -f /var/log/storage-check.log" ;;
         monitoring) ssh {{ pve }} "pct exec {{ monitoring_ct }} -- docker compose -f /opt/monitoring/docker-compose.yml logs -f --tail 100" ;;
         actualbudget) ssh {{ pve }} "pct exec {{ actualbudget_ct }} -- docker compose -f /opt/actualbudget/docker-compose.yml logs -f --tail 100" ;;
-        *)         echo "Unknown target: {{ target }} (try: immich, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring, actualbudget)"; exit 1 ;;
+        homeassistant) ssh {{ pve }} "qm guest exec {{ ha_vm }} --timeout 60 -- docker exec hassio_cli ha core logs --lines 100" | {{ ha_agent }} ;;
+        *)         echo "Unknown target: {{ target }} (try: immich, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring, actualbudget, homeassistant)"; exit 1 ;;
     esac
 
 # Show container and VM status
