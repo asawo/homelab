@@ -104,7 +104,7 @@ groups:
       # filesystem, so node/pve's own disk usage already covers it without
       # a separate term.
       - alert: HighCpuUsage
-        expr: pve_cpu_usage_ratio{id=~"node/pve|lxc/10[15679]"} > 0.9
+        expr: pve_cpu_usage_ratio{id=~"node/pve|lxc/10[15679]|qemu/111"} > 0.9
         for: 10m
         labels:
           severity: warning
