@@ -30,8 +30,8 @@ services:
       - redis
       - database
     # memswap_limit == mem_limit: OOM-kill and restart instead of swapping.
-    mem_limit: 1200m
-    memswap_limit: 1200m
+    mem_limit: 1500m
+    memswap_limit: 1500m
     restart: always
     healthcheck:
       disable: false
@@ -108,7 +108,7 @@ services:
       # than relying on however cAdvisor happens to resolve /rootfs internally.
       - /etc/machine-id:/etc/machine-id:ro
     # No /dev/kmsg device mapping -- it doesn't exist inside an unprivileged LXC.
-    mem_limit: 200m
+    mem_limit: 256m
     restart: always
 
   # Ships this LXC's Docker container logs to the central Loki. This LXC's own
