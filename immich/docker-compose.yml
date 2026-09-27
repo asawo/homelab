@@ -29,6 +29,9 @@ services:
     depends_on:
       - redis
       - database
+    # memswap_limit == mem_limit: OOM-kill and restart instead of swapping.
+    mem_limit: 1200m
+    memswap_limit: 1200m
     restart: always
     healthcheck:
       disable: false
@@ -47,6 +50,10 @@ services:
       - model-cache:/cache
     env_file:
       - .env
+    environment:
+      MACHINE_LEARNING_MODEL_TTL: 60
+    mem_limit: 1536m
+    memswap_limit: 1536m
     restart: always
     healthcheck:
       disable: false
