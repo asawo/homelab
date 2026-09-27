@@ -117,7 +117,6 @@ diff:
 
     echo "Stirling PDF"
     check_diff "docker-compose.yml" "stirling-pdf/docker-compose.yml" "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml"
-    check_diff "alloy-config.alloy" "stirling-pdf/alloy-config.alloy" "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/alloy-config.alloy"
 
     echo "AdGuard Home"
     check_diff "docker-compose.yml" "adguard/docker-compose.yml" "pct exec {{ adguard_ct }} -- cat /opt/adguard/docker-compose.yml"
@@ -207,7 +206,6 @@ pull:
 
     echo "Pulling Stirling PDF configs..."
     ssh {{ pve }} "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml" > stirling-pdf/docker-compose.yml
-    ssh {{ pve }} "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/alloy-config.alloy" > stirling-pdf/alloy-config.alloy
 
     echo "Pulling AdGuard Home configs..."
     ssh {{ pve }} "pct exec {{ adguard_ct }} -- cat /opt/adguard/docker-compose.yml" > adguard/docker-compose.yml
@@ -302,8 +300,6 @@ push-stirling:
     echo "Pushing Stirling PDF configs..."
     echo "  docker-compose.yml"
     cat stirling-pdf/docker-compose.yml | ssh {{ pve }} "pct exec {{ stirling_ct }} -- tee /opt/stirling-pdf/docker-compose.yml > /dev/null"
-    echo "  alloy-config.alloy"
-    cat stirling-pdf/alloy-config.alloy | ssh {{ pve }} "pct exec {{ stirling_ct }} -- tee /opt/stirling-pdf/alloy-config.alloy > /dev/null"
     echo "Done. Restart with: just restart-stirling"
 
 # Push AdGuard Home configs to the host
