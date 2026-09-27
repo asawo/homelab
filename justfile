@@ -100,6 +100,7 @@ diff:
     check_diff "borg-backup.sh" proxmox/borg-backup.sh "cat /usr/local/bin/borg-backup.sh"
     check_diff "check-storage.sh" proxmox/check-storage.sh "cat /usr/local/bin/check-storage.sh"
     check_diff "crontab" proxmox/crontab "crontab -l"
+    check_diff "sysctl.conf" proxmox/sysctl.conf "cat /etc/sysctl.d/99-homelab.conf"
     check_diff "storage.cfg" proxmox/storage.cfg "cat /etc/pve/storage.cfg"
     check_diff "jobs.cfg" proxmox/jobs.cfg "cat /etc/pve/jobs.cfg"
     if [ -f proxmox/check-storage.env ]; then
@@ -116,7 +117,6 @@ diff:
 
     echo "Stirling PDF"
     check_diff "docker-compose.yml" "stirling-pdf/docker-compose.yml" "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml"
-    check_diff "alloy-config.alloy" "stirling-pdf/alloy-config.alloy" "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/alloy-config.alloy"
 
     echo "AdGuard Home"
     check_diff "docker-compose.yml" "adguard/docker-compose.yml" "pct exec {{ adguard_ct }} -- cat /opt/adguard/docker-compose.yml"
@@ -184,6 +184,7 @@ pull:
     ssh {{ pve }} "cat /usr/local/bin/borg-backup.sh" > proxmox/borg-backup.sh
     ssh {{ pve }} "cat /usr/local/bin/check-storage.sh" > proxmox/check-storage.sh
     ssh {{ pve }} "crontab -l" > proxmox/crontab
+    ssh {{ pve }} "cat /etc/sysctl.d/99-homelab.conf" > proxmox/sysctl.conf
     ssh {{ pve }} "cat /etc/pve/storage.cfg" > proxmox/storage.cfg
     ssh {{ pve }} "cat /etc/pve/jobs.cfg" > proxmox/jobs.cfg
     tmp=$(mktemp); ssh {{ pve }} "cat /usr/local/etc/check-storage.env" > "$tmp" 2>/dev/null && [ -s "$tmp" ] && mv "$tmp" proxmox/check-storage.env || { echo "  Skipped proxmox/check-storage.env (not found or unreachable) -- left unchanged"; rm -f "$tmp"; }
@@ -205,7 +206,6 @@ pull:
 
     echo "Pulling Stirling PDF configs..."
     ssh {{ pve }} "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/docker-compose.yml" > stirling-pdf/docker-compose.yml
-    ssh {{ pve }} "pct exec {{ stirling_ct }} -- cat /opt/stirling-pdf/alloy-config.alloy" > stirling-pdf/alloy-config.alloy
 
     echo "Pulling AdGuard Home configs..."
     ssh {{ pve }} "pct exec {{ adguard_ct }} -- cat /opt/adguard/docker-compose.yml" > adguard/docker-compose.yml
@@ -285,6 +285,8 @@ push-pve:
     fi
     echo "  crontab"
     cat proxmox/crontab | ssh {{ pve }} "crontab -"
+    echo "  sysctl.conf"
+    cat proxmox/sysctl.conf | ssh {{ pve }} "tee /etc/sysctl.d/99-homelab.conf > /dev/null && sysctl -q -p /etc/sysctl.d/99-homelab.conf"
     echo "  storage.cfg"
     cat proxmox/storage.cfg | ssh {{ pve }} "tee /etc/pve/storage.cfg > /dev/null"
     echo "  jobs.cfg"
@@ -298,8 +300,6 @@ push-stirling:
     echo "Pushing Stirling PDF configs..."
     echo "  docker-compose.yml"
     cat stirling-pdf/docker-compose.yml | ssh {{ pve }} "pct exec {{ stirling_ct }} -- tee /opt/stirling-pdf/docker-compose.yml > /dev/null"
-    echo "  alloy-config.alloy"
-    cat stirling-pdf/alloy-config.alloy | ssh {{ pve }} "pct exec {{ stirling_ct }} -- tee /opt/stirling-pdf/alloy-config.alloy > /dev/null"
     echo "Done. Restart with: just restart-stirling"
 
 # Push AdGuard Home configs to the host

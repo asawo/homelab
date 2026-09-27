@@ -9,7 +9,7 @@
 groups:
   - name: monitoring
     rules:
-      # Scoped to the in-scope LXCs only (101, 103, 105-107, 109). Deliberately
+      # Scoped to the in-scope LXCs only (101, 105-107, 109). Deliberately
       # excludes the host itself (id="node/pve"): CT
       # 108, which runs this entire Prometheus/Alertmanager stack, is an LXC
       # on that same host, so a real host outage takes the alerting pipeline
@@ -17,7 +17,7 @@ groups:
       # actual host-down event needs an external observer (e.g. a hosted
       # heartbeat/dead-man's-switch), not a rule here.
       - alert: TargetDown
-        expr: pve_up{id=~"lxc/10[135679]|qemu/111"} == 0
+        expr: pve_up{id=~"lxc/10[15679]|qemu/111"} == 0
         for: 2m
         labels:
           severity: critical
@@ -77,7 +77,7 @@ groups:
       # here for the same reason TargetDown above excludes the host: this
       # stack can't notify about its own host being down.
       - alert: PveExporterMetricsMissing
-        expr: absent(pve_up{id="lxc/101"}) or absent(pve_up{id="lxc/103"}) or absent(pve_up{id="lxc/105"}) or absent(pve_up{id="lxc/106"}) or absent(pve_up{id="lxc/107"}) or absent(pve_up{id="lxc/109"}) or absent(pve_up{id="qemu/111"})
+        expr: absent(pve_up{id="lxc/101"}) or absent(pve_up{id="lxc/105"}) or absent(pve_up{id="lxc/106"}) or absent(pve_up{id="lxc/107"}) or absent(pve_up{id="lxc/109"}) or absent(pve_up{id="qemu/111"})
         for: 5m
         labels:
           severity: critical
@@ -85,7 +85,7 @@ groups:
           summary: "pve-exporter is not reporting pve_up for id {{ $labels.id }}"
 
       - alert: BlackboxProbeMetricsMissing
-        expr: absent(probe_success{instance="http://photos.home:2283"}) or absent(probe_success{instance="http://pdf.home:8080/api/v1/info/status"}) or absent(probe_success{instance="http://nas.home:8080"}) or absent(probe_success{instance="http://wiki.home:8080"}) or absent(probe_success{instance="http://adguard.home:80"}) or absent(probe_success{instance="http://budget.home:5006"}) or absent(probe_success{instance="http://ha.home:80"}) or absent(probe_success{instance="192.168.8.207:53"})
+        expr: absent(probe_success{instance="http://photos.home:2283"}) or absent(probe_success{instance="http://nas.home:8080"}) or absent(probe_success{instance="http://wiki.home:8080"}) or absent(probe_success{instance="http://adguard.home:80"}) or absent(probe_success{instance="http://budget.home:5006"}) or absent(probe_success{instance="http://ha.home:80"}) or absent(probe_success{instance="192.168.8.207:53"})
         for: 5m
         labels:
           severity: critical
@@ -104,23 +104,47 @@ groups:
       # filesystem, so node/pve's own disk usage already covers it without
       # a separate term.
       - alert: HighCpuUsage
-        expr: pve_cpu_usage_ratio{id=~"node/pve|lxc/10[135679]"} > 0.9
+        expr: pve_cpu_usage_ratio{id=~"node/pve|lxc/10[15679]|qemu/111"} > 0.9
         for: 10m
         labels:
           severity: warning
         annotations:
           summary: "{{ $labels.id }} CPU usage above 90% for 10m"
 
+      # qemu/111 excluded: HAOS always reports ~93% of its allocation.
       - alert: HighMemoryUsage
-        expr: (pve_memory_usage_bytes{id=~"node/pve|lxc/10[135679]"} / pve_memory_size_bytes{id=~"node/pve|lxc/10[135679]"}) > 0.9
+        expr: (pve_memory_usage_bytes{id=~"lxc/10[156789]"} / pve_memory_size_bytes{id=~"lxc/10[156789]"}) > 0.9
         for: 10m
         labels:
           severity: warning
         annotations:
           summary: "{{ $labels.id }} memory usage above 90% for 10m"
 
+      # Guests are overcommitted against 7.6 GiB; the 2026-09-27 hangs went
+      # from fine to frozen in minutes once the host started swapping.
+      # Normal peak under Immich ML load is ~80%.
+      - alert: HostMemoryHigh
+        expr: (pve_memory_usage_bytes{id="node/pve"} / pve_memory_size_bytes{id="node/pve"}) > 0.88
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Proxmox host memory above 88% -- stop Immich ML before it hangs"
+
+      # Hitting the cap OOM-kills in-flight jobs (cAdvisor can't see OOM
+      # events inside the LXC, so this is the closest signal). ML sits at
+      # ~90% for up to its 60s model TTL after a job; sustained means the cap
+      # is too small for the workload.
+      - alert: ImmichContainerNearMemoryLimit
+        expr: container_memory_working_set_bytes{name=~"immich_server|immich_machine_learning"} / (container_spec_memory_limit_bytes{name=~"immich_server|immich_machine_learning"} > 0) > 0.95
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.name }} above 95% of its memory limit for 5m"
+
       - alert: RootDiskAlmostFull
-        expr: (pve_disk_usage_bytes{id=~"node/pve|lxc/10[135679]"} / pve_disk_size_bytes{id=~"node/pve|lxc/10[135679]"}) > 0.85
+        expr: (pve_disk_usage_bytes{id=~"node/pve|lxc/10[15679]"} / pve_disk_size_bytes{id=~"node/pve|lxc/10[15679]"}) > 0.85
         for: 15m
         labels:
           severity: warning

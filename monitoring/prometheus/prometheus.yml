@@ -16,8 +16,8 @@ scrape_configs:
   # pve-exporter returns metrics for every node/CT/VM on the cluster in a
   # single scrape (confirmed live: `curl pve-exporter:9221/pve?target=pve.lan`
   # returns pve_* series for all LXCs, filtered to the in-scope 5 --
-  # Immich/101, Stirling PDF/103, FileBrowser/105, LeafWiki/106,
-  # AdGuard/107 -- at the Grafana/alerting layer, not here).
+  # Immich/101, FileBrowser/105, LeafWiki/106, AdGuard/107,
+  # Actual Budget/109 -- at the Grafana/alerting layer, not here).
   - job_name: pve
     static_configs:
       - targets:
@@ -43,13 +43,11 @@ scrape_configs:
       - targets: ["192.168.8.201:8082"]
         labels: { service: immich-microservices }
 
-  # Per-container resource metrics for the 4 Docker-based LXCs only.
+  # Per-container resource metrics for the Docker-based LXCs only.
   - job_name: cadvisor
     static_configs:
       - targets: ["192.168.8.201:9280"]
         labels: { lxc: immich }
-      - targets: ["192.168.8.203:9280"]
-        labels: { lxc: stirling-pdf }
       - targets: ["192.168.8.207:9280"]
         labels: { lxc: adguard }
       - targets: ["192.168.8.209:9280"]
@@ -68,7 +66,6 @@ scrape_configs:
     static_configs:
       - targets:
           - http://photos.home:2283 # immich
-          - http://pdf.home:8080/api/v1/info/status # stirling-pdf -- root path requires login (401), this doesn't
           - http://nas.home:8080 # filebrowser
           - http://wiki.home:8080 # leafwiki
           - http://adguard.home:80 # adguard -- README says 3000, but the live container actually listens on 80; flag the doc drift separately
