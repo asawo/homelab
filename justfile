@@ -7,6 +7,10 @@ adguard_ct := "107"
 monitoring_ct := "108"
 actualbudget_ct := "109"
 ha_vm := "111"
+ha_config := "/mnt/data/supervisor/homeassistant/configuration.yaml"
+
+# Unwraps `qm guest exec` JSON: prints the command's output and exits with its exit code
+ha_agent := '''python3 -c 'import json,sys; d=json.load(sys.stdin); sys.stdout.write(d.get("out-data","")); sys.stderr.write(d.get("err-data","")); sys.exit(d.get("exitcode",1))' '''
 
 # List available commands
 default:
@@ -150,6 +154,15 @@ diff:
     check_diff "docker-compose.yml" "actualbudget/docker-compose.yml" "pct exec {{ actualbudget_ct }} -- cat /opt/actualbudget/docker-compose.yml"
     check_diff "alloy-config.alloy" "actualbudget/alloy-config.alloy" "pct exec {{ actualbudget_ct }} -- cat /opt/actualbudget/alloy-config.alloy"
 
+    echo "Home Assistant"
+    result=$(diff --color=always -u homeassistant/configuration.yaml <(ssh {{ pve }} "qm guest exec {{ ha_vm }} -- cat {{ ha_config }}" | {{ ha_agent }}) 2>/dev/null) || true
+    if [ -n "$result" ]; then
+        echo "  configuration.yaml"
+        echo "$result" | tail -n +3
+        echo ""
+        changed=1
+    fi
+
     echo "Native Alloy (FileBrowser, LeafWiki)"
     for ct in {{ filebrowser_ct }} {{ leafwiki_ct }}; do
         check_diff "CT $ct config.alloy" "monitoring/alloy-native.alloy" "pct exec $ct -- cat /opt/alloy/config.alloy"
@@ -230,6 +243,10 @@ pull:
     echo "Pulling native Alloy configs..."
     ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /opt/alloy/config.alloy" > monitoring/alloy-native.alloy
     ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /etc/systemd/system/alloy.service" > monitoring/alloy-native.service
+
+    echo "Pulling Home Assistant configs..."
+    mkdir -p homeassistant
+    tmp=$(mktemp); ssh {{ pve }} "qm guest exec {{ ha_vm }} -- cat {{ ha_config }}" | {{ ha_agent }} > "$tmp" && mv "$tmp" homeassistant/configuration.yaml || { echo "  Skipped homeassistant/configuration.yaml (guest agent read failed) -- left unchanged"; rm -f "$tmp"; }
 
     just fmt
     echo "Done. Run 'git diff' to see what changed."
