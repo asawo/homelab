@@ -1,0 +1,61 @@
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+binary_sensor:
+  - platform: rest
+    name: Baby monitor API
+    resource: http://192.168.8.134/api/status
+    scan_interval: 30
+    timeout: 5
+    device_class: connectivity
+    value_template: >
+      {% set s = value_json | selectattr('active') | map(attribute='name') | map('replace', '.service', '') | list %}
+      {{ 'stream' in s and 'mediamtx' in s }}
+  - platform: rest
+    name: Baby monitor notifications API
+    resource: http://192.168.8.134/api/notifications
+    scan_interval: 15
+    timeout: 5
+    value_template: "{{ value_json.enabled }}"
+
+rest_command:
+  baby_monitor_flip_notifications:
+    url: http://192.168.8.134/api/notifications
+    method: post
+    timeout: 5
+
+template:
+  - binary_sensor:
+      - name: Baby monitor
+        unique_id: baby_monitor_connectivity
+        device_class: connectivity
+        icon: mdi:baby-face-outline
+        state: "{{ is_state('binary_sensor.baby_monitor_api', 'on') }}"
+  - switch:
+      - name: Baby monitor notifications
+        unique_id: baby_monitor_notifications
+        icon: mdi:bell-ring-outline
+        availability: "{{ has_value('binary_sensor.baby_monitor_notifications_api') }}"
+        state: "{{ is_state('binary_sensor.baby_monitor_notifications_api', 'on') }}"
+        turn_on:
+          - if: "{{ is_state('binary_sensor.baby_monitor_notifications_api', 'off') }}"
+            then:
+              - action: rest_command.baby_monitor_flip_notifications
+              - action: homeassistant.update_entity
+                target:
+                  entity_id: binary_sensor.baby_monitor_notifications_api
+        turn_off:
+          - if: "{{ is_state('binary_sensor.baby_monitor_notifications_api', 'on') }}"
+            then:
+              - action: rest_command.baby_monitor_flip_notifications
+              - action: homeassistant.update_entity
+                target:
+                  entity_id: binary_sensor.baby_monitor_notifications_api

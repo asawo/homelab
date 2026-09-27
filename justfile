@@ -6,6 +6,11 @@ leafwiki_ct := "106"
 adguard_ct := "107"
 monitoring_ct := "108"
 actualbudget_ct := "109"
+ha_vm := "111"
+ha_config := "/mnt/data/supervisor/homeassistant/configuration.yaml"
+
+# Unwraps `qm guest exec` JSON: prints the command's output and exits with its exit code
+ha_agent := '''python3 -c 'import json,sys; d=json.load(sys.stdin); sys.stdout.write(d.get("out-data","")); sys.stderr.write(d.get("err-data","")); sys.exit(d.get("exitcode",1))' '''
 
 # List available commands
 default:
@@ -95,6 +100,8 @@ diff:
     check_diff "borg-backup.sh" proxmox/borg-backup.sh "cat /usr/local/bin/borg-backup.sh"
     check_diff "check-storage.sh" proxmox/check-storage.sh "cat /usr/local/bin/check-storage.sh"
     check_diff "crontab" proxmox/crontab "crontab -l"
+    check_diff "storage.cfg" proxmox/storage.cfg "cat /etc/pve/storage.cfg"
+    check_diff "jobs.cfg" proxmox/jobs.cfg "cat /etc/pve/jobs.cfg"
     if [ -f proxmox/check-storage.env ]; then
         check_diff "check-storage.env" proxmox/check-storage.env "cat /usr/local/etc/check-storage.env"
     fi
@@ -147,6 +154,15 @@ diff:
     check_diff "docker-compose.yml" "actualbudget/docker-compose.yml" "pct exec {{ actualbudget_ct }} -- cat /opt/actualbudget/docker-compose.yml"
     check_diff "alloy-config.alloy" "actualbudget/alloy-config.alloy" "pct exec {{ actualbudget_ct }} -- cat /opt/actualbudget/alloy-config.alloy"
 
+    echo "Home Assistant"
+    result=$(diff --color=always -u homeassistant/configuration.yaml <(ssh {{ pve }} "qm guest exec {{ ha_vm }} -- cat {{ ha_config }}" | {{ ha_agent }}) 2>/dev/null) || true
+    if [ -n "$result" ]; then
+        echo "  configuration.yaml"
+        echo "$result" | tail -n +3
+        echo ""
+        changed=1
+    fi
+
     echo "Native Alloy (FileBrowser, LeafWiki)"
     for ct in {{ filebrowser_ct }} {{ leafwiki_ct }}; do
         check_diff "CT $ct config.alloy" "monitoring/alloy-native.alloy" "pct exec $ct -- cat /opt/alloy/config.alloy"
@@ -168,6 +184,8 @@ pull:
     ssh {{ pve }} "cat /usr/local/bin/borg-backup.sh" > proxmox/borg-backup.sh
     ssh {{ pve }} "cat /usr/local/bin/check-storage.sh" > proxmox/check-storage.sh
     ssh {{ pve }} "crontab -l" > proxmox/crontab
+    ssh {{ pve }} "cat /etc/pve/storage.cfg" > proxmox/storage.cfg
+    ssh {{ pve }} "cat /etc/pve/jobs.cfg" > proxmox/jobs.cfg
     tmp=$(mktemp); ssh {{ pve }} "cat /usr/local/etc/check-storage.env" > "$tmp" 2>/dev/null && [ -s "$tmp" ] && mv "$tmp" proxmox/check-storage.env || { echo "  Skipped proxmox/check-storage.env (not found or unreachable) -- left unchanged"; rm -f "$tmp"; }
     ssh {{ pve }} "pct config {{ immich_ct }}" > proxmox/ct-101-immich.conf
 
@@ -176,6 +194,7 @@ pull:
     ssh {{ pve }} "pct config {{ leafwiki_ct }}" > proxmox/ct-106-leafwiki.conf
     ssh {{ pve }} "pct config {{ adguard_ct }}" > proxmox/ct-107-adguard.conf
     ssh {{ pve }} "pct config {{ actualbudget_ct }}" > proxmox/ct-109-actualbudget.conf
+    ssh {{ pve }} "qm config {{ ha_vm }}" > proxmox/vm-111-homeassistant.conf
 
     echo "Pulling Immich configs..."
     ssh {{ pve }} "pct exec {{ immich_ct }} -- cat /opt/immich/docker-compose.yml" > immich/docker-compose.yml
@@ -225,6 +244,10 @@ pull:
     ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /opt/alloy/config.alloy" > monitoring/alloy-native.alloy
     ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /etc/systemd/system/alloy.service" > monitoring/alloy-native.service
 
+    echo "Pulling Home Assistant configs..."
+    mkdir -p homeassistant
+    tmp=$(mktemp); ssh {{ pve }} "qm guest exec {{ ha_vm }} -- cat {{ ha_config }}" | {{ ha_agent }} > "$tmp" && mv "$tmp" homeassistant/configuration.yaml || { echo "  Skipped homeassistant/configuration.yaml (guest agent read failed) -- left unchanged"; rm -f "$tmp"; }
+
     just fmt
     echo "Done. Run 'git diff' to see what changed."
 
@@ -262,6 +285,10 @@ push-pve:
     fi
     echo "  crontab"
     cat proxmox/crontab | ssh {{ pve }} "crontab -"
+    echo "  storage.cfg"
+    cat proxmox/storage.cfg | ssh {{ pve }} "tee /etc/pve/storage.cfg > /dev/null"
+    echo "  jobs.cfg"
+    cat proxmox/jobs.cfg | ssh {{ pve }} "tee /etc/pve/jobs.cfg > /dev/null"
     echo "Done. Network changes need: just ssh pve, then 'ifreload -a'"
 
 # Push Stirling PDF configs to the host
@@ -325,6 +352,23 @@ push-actualbudget:
     cat actualbudget/alloy-config.alloy | ssh {{ pve }} "pct exec {{ actualbudget_ct }} -- tee /opt/actualbudget/alloy-config.alloy > /dev/null"
     echo "Done. Restart with: just restart-actualbudget"
 
+# Push Home Assistant configuration.yaml to VM 111 (validated, rolled back if the config check fails)
+push-homeassistant:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ha() { ssh {{ pve }} "qm guest exec {{ ha_vm }} --timeout 120 -- $*" | {{ ha_agent }}; }
+    echo "Pushing Home Assistant configs..."
+    ha cp {{ ha_config }} {{ ha_config }}.prev
+    echo "  configuration.yaml"
+    cat homeassistant/configuration.yaml | ssh {{ pve }} "qm guest exec {{ ha_vm }} --pass-stdin 1 -- tee {{ ha_config }}" | {{ ha_agent }} > /dev/null
+    echo "Checking config..."
+    if ! ha docker exec hassio_cli ha core check; then
+        echo "Config check failed, restoring previous configuration.yaml"
+        ha mv {{ ha_config }}.prev {{ ha_config }}
+        exit 1
+    fi
+    echo "Done. Restart with: just restart-homeassistant"
+
 # Push monitoring stack to CT 108 + native Alloy config to FileBrowser/LeafWiki
 push-monitoring:
     #!/usr/bin/env bash
@@ -382,6 +426,10 @@ restart-adguard:
 restart-actualbudget:
     ssh {{ pve }} "pct exec {{ actualbudget_ct }} -- bash -c 'cd /opt/actualbudget && docker compose down && docker compose up -d'"
 
+# Restart Home Assistant Core on VM 111
+restart-homeassistant:
+    ssh {{ pve }} "qm guest exec {{ ha_vm }} --timeout 300 -- docker exec hassio_cli ha core restart" | {{ ha_agent }}
+
 # Tail logs (e.g. `just logs immich`, `just logs backup`)
 logs target="immich":
     #!/usr/bin/env bash
@@ -395,12 +443,13 @@ logs target="immich":
         storage-check) ssh {{ pve }} "tail -f /var/log/storage-check.log" ;;
         monitoring) ssh {{ pve }} "pct exec {{ monitoring_ct }} -- docker compose -f /opt/monitoring/docker-compose.yml logs -f --tail 100" ;;
         actualbudget) ssh {{ pve }} "pct exec {{ actualbudget_ct }} -- docker compose -f /opt/actualbudget/docker-compose.yml logs -f --tail 100" ;;
-        *)         echo "Unknown target: {{ target }} (try: immich, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring, actualbudget)"; exit 1 ;;
+        homeassistant) ssh {{ pve }} "qm guest exec {{ ha_vm }} --timeout 60 -- docker exec hassio_cli ha core logs --lines 100" | {{ ha_agent }} ;;
+        *)         echo "Unknown target: {{ target }} (try: immich, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring, actualbudget, homeassistant)"; exit 1 ;;
     esac
 
-# Show container status
+# Show container and VM status
 status:
-    @ssh {{ pve }} "pct list"
+    @ssh {{ pve }} "pct list && echo && qm list"
 
 # Manually run the storage health check (normally runs every 5 min via cron)
 check-storage:
