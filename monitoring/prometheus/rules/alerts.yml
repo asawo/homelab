@@ -9,7 +9,8 @@
 groups:
   - name: monitoring
     rules:
-      # Scoped to the in-scope LXCs only (101, 103, 105-107, 109). Deliberately
+      # Scoped to the in-scope LXCs only (101, 105-107, 109; 103 Stirling is
+      # on-demand, onboot 0). Deliberately
       # excludes the host itself (id="node/pve"): CT
       # 108, which runs this entire Prometheus/Alertmanager stack, is an LXC
       # on that same host, so a real host outage takes the alerting pipeline
@@ -17,7 +18,7 @@ groups:
       # actual host-down event needs an external observer (e.g. a hosted
       # heartbeat/dead-man's-switch), not a rule here.
       - alert: TargetDown
-        expr: pve_up{id=~"lxc/10[135679]|qemu/111"} == 0
+        expr: pve_up{id=~"lxc/10[15679]|qemu/111"} == 0
         for: 2m
         labels:
           severity: critical
@@ -27,8 +28,9 @@ groups:
       # Restricted to job="blackbox-http" now that a second blackbox job
       # (blackbox-dns, below) also produces probe_success -- otherwise a DNS
       # failure would double-fire both alerts under overlapping meanings.
+      # Stirling only counts while CT 103 is running.
       - alert: HttpCheckFailing
-        expr: probe_success{job="blackbox-http"} == 0
+        expr: probe_success{job="blackbox-http", instance!~".*pdf\\.home.*"} == 0 or (probe_success{job="blackbox-http", instance=~".*pdf\\.home.*"} == 0 and on() pve_up{id="lxc/103"} == 1)
         for: 2m
         labels:
           severity: critical
@@ -57,7 +59,7 @@ groups:
       # uniformly -- closes the gap TargetDown leaves for every job except
       # pve-exporter's.
       - alert: PrometheusTargetDown
-        expr: up == 0
+        expr: up{lxc!="stirling-pdf"} == 0 or (up{lxc="stirling-pdf"} == 0 and on() pve_up{id="lxc/103"} == 1)
         for: 2m
         labels:
           severity: critical
@@ -111,13 +113,37 @@ groups:
         annotations:
           summary: "{{ $labels.id }} CPU usage above 90% for 10m"
 
+      # qemu/111 excluded: HAOS always reports ~93% of its allocation.
       - alert: HighMemoryUsage
-        expr: (pve_memory_usage_bytes{id=~"node/pve|lxc/10[135679]"} / pve_memory_size_bytes{id=~"node/pve|lxc/10[135679]"}) > 0.9
+        expr: (pve_memory_usage_bytes{id=~"lxc/10[1356789]"} / pve_memory_size_bytes{id=~"lxc/10[1356789]"}) > 0.9
         for: 10m
         labels:
           severity: warning
         annotations:
           summary: "{{ $labels.id }} memory usage above 90% for 10m"
+
+      # Guests are overcommitted against 7.6 GiB; the 2026-09-27 hangs went
+      # from fine to frozen in minutes once the host started swapping.
+      # Normal peak under Immich ML load is ~80%.
+      - alert: HostMemoryHigh
+        expr: (pve_memory_usage_bytes{id="node/pve"} / pve_memory_size_bytes{id="node/pve"}) > 0.88
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Proxmox host memory above 88% -- stop Immich ML before it hangs"
+
+      # Hitting the cap OOM-kills in-flight jobs (cAdvisor can't see OOM
+      # events inside the LXC, so this is the closest signal). ML sits at
+      # ~90% for up to its 60s model TTL after a job; sustained means the cap
+      # is too small for the workload.
+      - alert: ImmichContainerNearMemoryLimit
+        expr: container_memory_working_set_bytes{name=~"immich_server|immich_machine_learning"} / (container_spec_memory_limit_bytes{name=~"immich_server|immich_machine_learning"} > 0) > 0.95
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.name }} above 95% of its memory limit for 5m"
 
       - alert: RootDiskAlmostFull
         expr: (pve_disk_usage_bytes{id=~"node/pve|lxc/10[135679]"} / pve_disk_size_bytes{id=~"node/pve|lxc/10[135679]"}) > 0.85
