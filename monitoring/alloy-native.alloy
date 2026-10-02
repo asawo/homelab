@@ -1,22 +1,22 @@
 // Shared config for the native (non-Docker) Alloy install on FileBrowser
-// and LeafWiki -- see monitoring/setup-alloy-native.sh and
+// -- see monitoring/setup-alloy-native.sh and
 // monitoring/alloy-native.service. Reads each host's own local journal and
-// ships it straight to Loki; identical across both -- loki.source.journal
+// ships it straight to Loki; identical across hosts -- loki.source.journal
 // doesn't promote journal fields to labels by default (everything comes
 // through under a single job=loki.source.journal.local label otherwise,
-// making the 2 sources indistinguishable), so relabel_rules explicitly
+// making sources indistinguishable), so relabel_rules explicitly
 // promotes _HOSTNAME/_SYSTEMD_UNIT to real "host"/"unit" labels below.
 // It also maps journald's own PRIORITY field (syslog severity, present on
 // every entry regardless of what the app itself prints) to a baseline
 // "level" -- without this, only apps that print their own recognizable level
-// text (e.g. LeafWiki's structured JSON) get one; the plain-text source
+// text (e.g. structured JSON) get one; the plain-text source
 // (FileBrowser) showed "unknown" otherwise. The loki.process block
 // below lets a real structured level (when present) override this fallback.
 //
 // Replaces an earlier design (systemd-journal-remote/-upload fan-in) that
 // hit an unresolved upstream systemd-journal-remote/libmicrohttpd chunked-
 // transfer-encoding bug -- see git history for the failed attempt. The host
-// itself is deliberately NOT in scope for this: unlike these 2 LXCs, it's
+// itself is deliberately NOT in scope for this: unlike these LXCs, it's
 // the bare Proxmox hypervisor, and the whole point of the original
 // systemd-journal-upload design was to avoid installing anything extra
 // directly on it.
@@ -70,7 +70,7 @@ loki.source.journal "local" {
   relabel_rules = loki.relabel.journal.rules
 }
 
-// Apps that emit structured JSON with their own level (e.g. LeafWiki) get
+// Apps that emit structured JSON with their own level get
 // that preferred over the coarse journald-priority fallback above. Below
 // that, two plain-text fallbacks catch severity signals journald's own
 // PRIORITY can't see (everything goes to stdout, which journald defaults to
@@ -98,7 +98,7 @@ loki.process "journal" {
     expression = "\\|\\s*(?P<status_code>[1-5]\\d{2})\\s*\\|"
   }
 
-  // Normalize case (and WARN/FATAL naming) so e.g. LeafWiki's own "INFO" and
+  // Normalize case (and WARN/FATAL naming) so e.g. an app's own "INFO" and
   // the priority-derived fallback's "info" collapse to one value instead of
   // fragmenting queries. Precedence: JSON-extracted level, then the bracket
   // word, then the HTTP status code (string comparison is safe here since
