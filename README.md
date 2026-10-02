@@ -12,7 +12,6 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 | immich        | photos.home     | Photo management (LXC 101)                |
 | stirling-pdf  | pdf.home        | PDF tools (LXC 103)                       |
 | filebrowser   | nas.home        | File browser (LXC 105)                    |
-| leafwiki      | wiki.home       | Wiki (LXC 106)                            |
 | actualbudget  | budget.home     | Personal finance / budgeting (LXC 109)    |
 | homeassistant | ha.home         | Home automation (VM 111)                  |
 
@@ -45,13 +44,6 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 - Serves `/mnt/storage/files` on port 8080
 - Journald forwarded to the central Loki via a native Grafana Alloy install (standalone binary + systemd unit, not Docker — see Monitoring section) (no app-level metrics support)
 
-### LeafWiki (CT 106)
-
-- Lightweight self-hosted wiki with Markdown stored on disk
-- Web UI on port 8080
-- `.env` is gitignored (contains JWT secret and admin password) — see `.env.example` for template
-- Journald forwarded to the central Loki via a native Grafana Alloy install (standalone binary + systemd unit, not Docker — see Monitoring section) (no app-level metrics support)
-
 ### AdGuard Home (CT 107)
 
 - Docker Compose, DNS on port 53 (tcp+udp) and web UI on port 3000
@@ -68,7 +60,7 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 
 ### Home Assistant (VM 111)
 
-- Home Assistant OS VM (q35/OVMF, 2 cores, 2 GB) at `http://ha.home` (new HAOS installs serve on port 80, not 8123)
+- Home Assistant OS VM (q35/OVMF, 2 cores, 1.5 GB) at `http://ha.home` (new HAOS installs serve on port 80, not 8123)
 - `homeassistant/configuration.yaml` is tracked (hand-written YAML: baby monitor status sensor and notifications switch); UI-managed config lives in HA and its backups
   - Read and written through the QEMU guest agent, so no SSH add-on is needed; `push-homeassistant` runs `ha core check` and restores the previous file if it fails
 - Nightly vzdump at 02:30 to `/mnt/storage/backups/vzdump` (keep 3), picked up by the 3am borg run
@@ -79,8 +71,8 @@ Configuration files for my homelab services running on Proxmox VE 9.1.
 ### Monitoring (CT 108)
 
 - Docker Compose: Prometheus, Grafana, Loki, Alertmanager, `prometheus-pve-exporter` (agentless host + per-CT metrics via the Proxmox API), `blackbox_exporter` (HTTP uptime checks), and an AdGuard metrics exporter
-- In scope for metrics/uptime: Immich, FileBrowser, LeafWiki, AdGuard, Actual Budget, and the host itself (Stirling PDF is on-demand and unmonitored)
-- Logs: the Docker-based LXCs (Immich, AdGuard, Actual Budget) ship container logs straight to Loki via a per-container Alloy sidecar (`loki.source.docker`); FileBrowser and LeafWiki ship journald straight to Loki via a native Alloy install (`monitoring/alloy-native.alloy`/`.service`, standalone binary, no Docker). No central relay — every source pushes directly to Loki
+- In scope for metrics/uptime: Immich, FileBrowser, AdGuard, Actual Budget, and the host itself (Stirling PDF is on-demand and unmonitored)
+- Logs: the Docker-based LXCs (Immich, AdGuard, Actual Budget) ship container logs straight to Loki via a per-container Alloy sidecar (`loki.source.docker`); FileBrowser ships journald straight to Loki via a native Alloy install (`monitoring/alloy-native.alloy`/`.service`, standalone binary, no Docker). No central relay — every source pushes directly to Loki
   - The host itself is deliberately **not** in scope for log shipping — it's the bare Proxmox hypervisor, and installing anything extra directly on it (even a lightweight native binary) was ruled out; `check-storage.sh` remains its only monitoring
   - An earlier design used `systemd-journal-remote`/`-upload` (part of systemd itself, near-zero footprint) to fan the 4 journald-only sources into one shared receiver on CT 108. Abandoned after hitting an unresolved upstream `systemd-journal-remote`/`libmicrohttpd` chunked-transfer-encoding bug that corrupted the stream and crash-looped the client — see git history for the investigation
 - Alerting goes to ntfy.sh via a webhook bridge, reusing the same `NTFY_TOPIC` convention as `proxmox/check-storage.env` — covers container/host-down, resource saturation, and failed HTTP checks. `check-storage.sh`'s own alerting and auto-remediation are separate and untouched
@@ -100,12 +92,11 @@ just push-immich       # Push Immich configs to the host
 just push-stirling     # Push Stirling PDF docker-compose
 just push-adguard      # Push AdGuard Home docker-compose
 just push-filebrowser  # Push FileBrowser configs and restart service
-just push-leafwiki     # Push LeafWiki configs and restart service
-just push-monitoring   # Push monitoring stack to CT 108 + native Alloy config to FileBrowser/LeafWiki
+just push-monitoring   # Push monitoring stack to CT 108 + native Alloy config to FileBrowser
 just push-actualbudget # Push Actual Budget docker-compose
 just push-homeassistant # Push HA configuration.yaml (config-checked, rolled back on failure)
-just ssh [target]      # SSH into pve, immich, stirling, filebrowser, leafwiki, adguard, monitoring, or actualbudget
-just logs [target]     # Tail logs (immich, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring, actualbudget, homeassistant)
+just ssh [target]      # SSH into pve, immich, stirling, filebrowser, adguard, monitoring, or actualbudget
+just logs [target]     # Tail logs (immich, stirling, filebrowser, adguard, backup, storage-check, monitoring, actualbudget, homeassistant)
 just status            # Show container and VM status
 just check-storage     # Manually run the storage health check
 just update-tailscale  # Upgrade Tailscale on all LXCs that have it installed

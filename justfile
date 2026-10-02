@@ -2,7 +2,6 @@ pve := "root@pve.lan"
 immich_ct := "101"
 stirling_ct := "103"
 filebrowser_ct := "105"
-leafwiki_ct := "106"
 adguard_ct := "107"
 monitoring_ct := "108"
 actualbudget_ct := "109"
@@ -32,7 +31,7 @@ check:
     echo "== shfmt =="
     git ls-files '*.sh' | xargs shfmt -d -i 2
     echo "== docker compose config =="
-    for dir in actualbudget adguard immich leafwiki monitoring stirling-pdf; do
+    for dir in actualbudget adguard immich monitoring stirling-pdf; do
         [ -f "$dir/docker-compose.yml" ] || continue
         created_env=0
         if [ -f "$dir/.env.example" ] && [ ! -f "$dir/.env" ]; then
@@ -54,7 +53,6 @@ ssh target="pve":
         immich)   ssh -t {{ pve }} "pct enter {{ immich_ct }}" ;;
         stirling)  ssh -t {{ pve }} "pct enter {{ stirling_ct }}" ;;
         filebrowser) ssh -t {{ pve }} "pct enter {{ filebrowser_ct }}" ;;
-        leafwiki) ssh -t {{ pve }} "pct enter {{ leafwiki_ct }}" ;;
         adguard)  ssh -t {{ pve }} "pct enter {{ adguard_ct }}" ;;
         monitoring) ssh -t {{ pve }} "pct enter {{ monitoring_ct }}" ;;
         actualbudget) ssh -t {{ pve }} "pct enter {{ actualbudget_ct }}" ;;
@@ -126,12 +124,6 @@ diff:
     check_diff "config.yaml" filebrowser/config.yaml "pct exec {{ filebrowser_ct }} -- cat /opt/filebrowser/config.yaml"
     check_diff "filebrowser.service" filebrowser/filebrowser.service "pct exec {{ filebrowser_ct }} -- cat /etc/systemd/system/filebrowser.service"
 
-    echo "LeafWiki"
-    check_diff "leafwiki.service" leafwiki/leafwiki.service "pct exec {{ leafwiki_ct }} -- cat /etc/systemd/system/leafwiki.service"
-    if [ -f leafwiki/.env ]; then
-        check_diff_env ".env" leafwiki/.env "pct exec {{ leafwiki_ct }} -- cat /etc/leafwiki/.env"
-    fi
-
     echo "Monitoring"
     check_diff "docker-compose.yml" "monitoring/docker-compose.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/docker-compose.yml"
     check_diff "prometheus.yml" "monitoring/prometheus/prometheus.yml" "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/prometheus/prometheus.yml"
@@ -163,8 +155,8 @@ diff:
         changed=1
     fi
 
-    echo "Native Alloy (FileBrowser, LeafWiki)"
-    for ct in {{ filebrowser_ct }} {{ leafwiki_ct }}; do
+    echo "Native Alloy (FileBrowser)"
+    for ct in {{ filebrowser_ct }}; do
         check_diff "CT $ct config.alloy" "monitoring/alloy-native.alloy" "pct exec $ct -- cat /opt/alloy/config.alloy"
         check_diff "CT $ct alloy.service" "monitoring/alloy-native.service" "pct exec $ct -- cat /etc/systemd/system/alloy.service"
     done
@@ -192,7 +184,6 @@ pull:
 
     ssh {{ pve }} "pct config {{ stirling_ct }}" > proxmox/ct-103-stirling.conf
     ssh {{ pve }} "pct config {{ filebrowser_ct }}" > proxmox/ct-105-filebrowser.conf
-    ssh {{ pve }} "pct config {{ leafwiki_ct }}" > proxmox/ct-106-leafwiki.conf
     ssh {{ pve }} "pct config {{ adguard_ct }}" > proxmox/ct-107-adguard.conf
     ssh {{ pve }} "pct config {{ actualbudget_ct }}" > proxmox/ct-109-actualbudget.conf
     ssh {{ pve }} "qm config {{ ha_vm }}" > proxmox/vm-111-homeassistant.conf
@@ -214,10 +205,6 @@ pull:
     echo "Pulling FileBrowser configs..."
     ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /opt/filebrowser/config.yaml" > filebrowser/config.yaml
     ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- cat /etc/systemd/system/filebrowser.service" > filebrowser/filebrowser.service
-
-    echo "Pulling LeafWiki configs..."
-    ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- cat /etc/systemd/system/leafwiki.service" > leafwiki/leafwiki.service
-    ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- cat /etc/leafwiki/.env" > leafwiki/.env
 
     echo "Pulling Monitoring configs..."
     ssh {{ pve }} "pct exec {{ monitoring_ct }} -- cat /opt/monitoring/docker-compose.yml" > monitoring/docker-compose.yml
@@ -326,21 +313,6 @@ push-filebrowser:
     ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- bash -c 'systemctl daemon-reload && systemctl restart filebrowser'"
     echo "Done."
 
-# Push LeafWiki configs to the host
-push-leafwiki:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "Pushing LeafWiki configs..."
-    echo "  leafwiki.service"
-    cat leafwiki/leafwiki.service | ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- tee /etc/systemd/system/leafwiki.service > /dev/null"
-    if [ -f leafwiki/.env ]; then
-        echo "  .env"
-        cat leafwiki/.env | ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- tee /etc/leafwiki/.env > /dev/null"
-    fi
-    echo "Restarting leafwiki..."
-    ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- bash -c 'systemctl daemon-reload && systemctl restart leafwiki'"
-    echo "Done."
-
 # Push Actual Budget configs to the host
 push-actualbudget:
     #!/usr/bin/env bash
@@ -369,7 +341,7 @@ push-homeassistant:
     fi
     echo "Done. Restart with: just restart-homeassistant"
 
-# Push monitoring stack to CT 108 + native Alloy config to FileBrowser/LeafWiki
+# Push monitoring stack to CT 108 + native Alloy config to FileBrowser
 push-monitoring:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -394,8 +366,8 @@ push-monitoring:
     cat monitoring/grafana/provisioning/dashboards/uptime-status.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/uptime-status.json > /dev/null"
     cat monitoring/grafana/provisioning/dashboards/logs-overview.json | ssh {{ pve }} "pct exec {{ monitoring_ct }} -- tee /opt/monitoring/grafana/provisioning/dashboards/logs-overview.json > /dev/null"
 
-    echo "Pushing native Alloy config to FileBrowser, LeafWiki..."
-    for ct in {{ filebrowser_ct }} {{ leafwiki_ct }}; do
+    echo "Pushing native Alloy config to FileBrowser..."
+    for ct in {{ filebrowser_ct }}; do
         echo "  CT $ct"
         ssh {{ pve }} "pct exec $ct -- mkdir -p /opt/alloy"
         cat monitoring/alloy-native.alloy | ssh {{ pve }} "pct exec $ct -- tee /opt/alloy/config.alloy > /dev/null"
@@ -404,7 +376,7 @@ push-monitoring:
     done
     echo "Done. Restart monitoring stack with: just restart-monitoring"
     echo "Restart native Alloy after a config change with: pct exec <ct> -- systemctl restart alloy"
-    echo "First-time only on each of FileBrowser/LeafWiki: run monitoring/setup-alloy-native.sh, then 'systemctl enable --now alloy'."
+    echo "First-time only on FileBrowser: run monitoring/setup-alloy-native.sh, then 'systemctl enable --now alloy'."
 
 # Restart the monitoring stack on CT 108
 restart-monitoring:
@@ -437,14 +409,13 @@ logs target="immich":
         immich)    ssh {{ pve }} "pct exec {{ immich_ct }} -- docker compose -f /opt/immich/docker-compose.yml logs -f --tail 100" ;;
         stirling)  ssh {{ pve }} "pct exec {{ stirling_ct }} -- docker compose -f /opt/stirling-pdf/docker-compose.yml logs -f --tail 100" ;;
         filebrowser) ssh {{ pve }} "pct exec {{ filebrowser_ct }} -- journalctl -u filebrowser -f" ;;
-        leafwiki)  ssh {{ pve }} "pct exec {{ leafwiki_ct }} -- journalctl -u leafwiki -f" ;;
         adguard)   ssh {{ pve }} "pct exec {{ adguard_ct }} -- docker compose -f /opt/adguard/docker-compose.yml logs -f --tail 100" ;;
         backup)    ssh {{ pve }} "tail -f /var/log/borg-backup.log" ;;
         storage-check) ssh {{ pve }} "tail -f /var/log/storage-check.log" ;;
         monitoring) ssh {{ pve }} "pct exec {{ monitoring_ct }} -- docker compose -f /opt/monitoring/docker-compose.yml logs -f --tail 100" ;;
         actualbudget) ssh {{ pve }} "pct exec {{ actualbudget_ct }} -- docker compose -f /opt/actualbudget/docker-compose.yml logs -f --tail 100" ;;
         homeassistant) ssh {{ pve }} "qm guest exec {{ ha_vm }} --timeout 60 -- docker exec hassio_cli ha core logs --lines 100" | {{ ha_agent }} ;;
-        *)         echo "Unknown target: {{ target }} (try: immich, stirling, filebrowser, leafwiki, adguard, backup, storage-check, monitoring, actualbudget, homeassistant)"; exit 1 ;;
+        *)         echo "Unknown target: {{ target }} (try: immich, stirling, filebrowser, adguard, backup, storage-check, monitoring, actualbudget, homeassistant)"; exit 1 ;;
     esac
 
 # Show container and VM status
@@ -459,12 +430,12 @@ check-storage:
 update-tailscale:
     #!/usr/bin/env bash
     set -e
-    for ct in {{ immich_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }} {{ actualbudget_ct }}; do
+    for ct in {{ immich_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ actualbudget_ct }}; do
         echo "=== CT $ct ==="
         ssh {{ pve }} "pct exec $ct -- bash -c 'apt-get update -qq && apt-get install --only-upgrade -y tailscale'"
     done
     echo "Done. Current versions:"
-    for ct in {{ immich_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ leafwiki_ct }} {{ actualbudget_ct }}; do
+    for ct in {{ immich_ct }} {{ stirling_ct }} {{ filebrowser_ct }} {{ actualbudget_ct }}; do
         echo -n "CT $ct: "
         ssh {{ pve }} "pct exec $ct -- tailscale version | head -1"
     done

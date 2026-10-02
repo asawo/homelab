@@ -15,8 +15,8 @@ scrape_configs:
   # (the cluster/host itself) is correct here, NOT one per container --
   # pve-exporter returns metrics for every node/CT/VM on the cluster in a
   # single scrape (confirmed live: `curl pve-exporter:9221/pve?target=pve.lan`
-  # returns pve_* series for all LXCs, filtered to the in-scope 5 --
-  # Immich/101, FileBrowser/105, LeafWiki/106, AdGuard/107,
+  # returns pve_* series for all LXCs, filtered to the in-scope 4 --
+  # Immich/101, FileBrowser/105, AdGuard/107,
   # Actual Budget/109 -- at the Grafana/alerting layer, not here).
   - job_name: pve
     static_configs:
@@ -67,7 +67,6 @@ scrape_configs:
       - targets:
           - http://photos.home:2283 # immich
           - http://nas.home:8080 # filebrowser
-          - http://wiki.home:8080 # leafwiki
           - http://adguard.home:80 # adguard -- README says 3000, but the live container actually listens on 80; flag the doc drift separately
           - http://budget.home:5006 # actualbudget
           - http://ha.home:80 # homeassistant
